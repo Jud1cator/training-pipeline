@@ -1,0 +1,67 @@
+run_params:
+  name: test
+  seed: 1
+
+datamodule:
+  name: ClassificationDataModule
+  params:
+    data_dir: "/home/dragon/Projects/edge_vision/dvc/sbc_core/Datasets/vehicle_classification_6/data"
+    test_data_dir: "/home/dragon/Projects/edge_vision/dvc/sbc_core/Datasets/dooh_classification_3"
+    classes:
+      - c1
+      - c2
+      - c3
+      - c4
+      - c5
+      - c6
+    input_shape: [224, 224]
+    val_split: 0.2
+    batch_size: 32
+    use_weighted_sampler: True
+    pin_memory: True
+    num_workers: 4
+
+task:
+  name: ClassificationTask
+  params:
+    debug: True
+
+    network:
+      name: EfficientNetLite0
+      params:
+        pretrained: True
+
+    loss:
+      name: CrossEntropyLoss
+      weighted: False
+      params:
+        {}
+
+    optimizer:
+      name: Adam
+      params:
+        lr: 0.001
+
+    scheduler:
+      name: ReduceLROnPlateau
+      params:
+        patience: 3
+        verbose: True
+
+callbacks:
+  EarlyStopping:
+    monitor: val_loss
+    mode: min
+    patience: 5
+    min_delta: 0.01
+    verbose: True
+  ModelCheckpoint:
+    {}
+
+trainer_params:
+  max_epochs: 100
+  gpus: 1
+
+export_params:
+  output_name: "effnet_lite0_6"
+  batch_size: 32

@@ -1,0 +1,7 @@
+*/__pycache__/*
+.idea
+lightning_logs
+trained_models
+runs
+venv
+
