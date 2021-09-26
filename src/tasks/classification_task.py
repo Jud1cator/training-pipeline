@@ -2,14 +2,13 @@ import pytorch_lightning as pl
 import torch
 import numpy as np
 
-from src.utils.registry import Registry
-from src.utils.visualization import visualize_batch
-from src.metrics import ConfusionMatrix
-from src.data_modules import ClassificationDataModule
-from src.utils.visualization import plot_confusion_matrix
+from registry import Registry
+from metrics import ConfusionMatrix
+from data_modules import ClassificationDataModule
+from utils.visualization import visualize_batch
+from utils.visualization import plot_confusion_matrix
 
 
-@Registry.register_task
 class ClassificationTask(pl.LightningModule):
 
     def __init__(

@@ -8,8 +8,7 @@ from torchvision import transforms as tf
 from torchvision.datasets import ImageFolder
 from sklearn.model_selection import train_test_split
 
-from src.utils.registry import Registry
-from src.data_modules.transforms import ResizePad
+from utils.transforms import ResizePad
 
 
 class SubsetWithTargets(Dataset):
@@ -34,7 +33,6 @@ class SubsetWithTargets(Dataset):
         return len(self.targets)
 
 
-@Registry.register_datamodule
 class ClassificationDataModule(LightningDataModule):
 
     def __init__(

@@ -2,7 +2,7 @@ import torch
 
 from utils.helpers import create_config_parser
 
-from src.utils.registry import Registry
+from src.registry import Registry
 
 
 def main(

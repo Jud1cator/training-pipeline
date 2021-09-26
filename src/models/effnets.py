@@ -3,11 +3,9 @@ from typing import Union
 import torch
 from geffnet import efficientnet_b0, efficientnet_lite0
 
-from src.models import MetaModel
-from src.utils.registry import Registry
+from models import MetaModel
 
 
-@Registry.register_model
 class EfficientNetB0(MetaModel):
     def __init__(self, input_shape=(224, 224), num_classes=1000,
                  pretrained=True, **kwargs):
@@ -22,7 +20,6 @@ class EfficientNetB0(MetaModel):
         return self.model
 
 
-@Registry.register_model
 class EfficientNetLite0(MetaModel):
     def __init__(self,
                  input_shape=(224, 224),

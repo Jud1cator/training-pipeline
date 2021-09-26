@@ -12,7 +12,10 @@ def resize_pad(img, target_shape):
     return out
 
 
-def calculate_dataset_distribution(imgs):
-    """Calculates mean and var of images for normalization"""
-    pass
+class ResizePad:
+    def __init__(self, target_shape):
+        self.target_shape = target_shape
 
+    def __call__(self, sample, *args, **kwargs):
+        image = resize_pad(sample, self.target_shape)
+        return image

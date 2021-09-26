@@ -7,7 +7,7 @@ from PIL import Image
 from argparse import ArgumentParser
 from torchvision import transforms
 
-from data_modules.transforms import ResizePad
+from src.utils.transforms import ResizePad
 from metrics.confusion_matrix import ConfusionMatrix
 
 

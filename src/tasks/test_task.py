@@ -1,13 +1,11 @@
 import pytorch_lightning as pl
 import numpy as np
 
-from src.utils.registry import Registry
-from src.utils.visualization import visualize_batch
-from src.metrics import ConfusionMatrix
-from src.utils.visualization import plot_confusion_matrix
+from metrics import ConfusionMatrix
+from utils.visualization import visualize_batch
+from utils.visualization import plot_confusion_matrix
 
 
-@Registry.register_task
 class TestTask(pl.LightningModule):
 
     def __init__(

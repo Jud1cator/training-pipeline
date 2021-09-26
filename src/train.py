@@ -6,7 +6,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from utils.helpers import create_config_parser
-from src.utils.registry import Registry
+from registry import Registry
 
 
 def prepare_run(name, seed):
@@ -32,6 +32,8 @@ def main(
 ):
     run_dir, ckpt_dir, res_dir = prepare_run(**run_params)
 
+    Registry.init_modules()
+
     logger = TensorBoardLogger(save_dir=run_dir, name='tb_logs')
 
     input_shape = tuple(datamodule['params']['input_shape'])
@@ -39,7 +41,7 @@ def main(
     export_path = Path("./trained_models")
     export_path.mkdir(exist_ok=True)
 
-    dm = Registry.DATAMODULES[datamodule['name']](**datamodule['params'])
+    dm = Registry.DATA_MODULES[datamodule['name']](**datamodule['params'])
 
     task = Registry.TASKS[task['name']](
         datamodule=dm, res_dir=res_dir, **task['params']

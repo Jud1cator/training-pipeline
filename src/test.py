@@ -2,10 +2,10 @@ import torch
 from pytorch_lightning import Trainer
 from argparse import ArgumentParser
 
-from src.tasks import TestTask
-from src.data_modules import ClassificationDataModule
-from src.utils.visualization import plot_confusion_matrix
-from src.models import SimpleNet
+from tasks import TestTask
+from data_modules import ClassificationDataModule
+from utils.visualization import plot_confusion_matrix
+from models import SimpleNet
 
 
 def main(params):

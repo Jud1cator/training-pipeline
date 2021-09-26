@@ -2,12 +2,10 @@ from typing import Tuple
 
 from torch import nn
 
-from src.models import MetaModel
-from src.utils.registry import Registry
-from src.models.blocks import ConvBlock
+from models import MetaModel
+from utils.blocks import ConvBlock
 
 
-@Registry.register_model
 class SimpleNet(MetaModel):
     def __init__(
             self,
