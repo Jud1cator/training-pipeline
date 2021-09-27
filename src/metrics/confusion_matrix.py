@@ -14,3 +14,9 @@ class ConfusionMatrix:
 
     def get_confusion_matrix(self):
         return self._cm
+
+    def get_precision(self):
+        return np.nan_to_num(np.diag(self._cm) / self._cm.sum(axis=0))
+
+    def get_recall(self):
+        return np.nan_to_num(np.diag(self._cm) / self._cm.sum(axis=1))

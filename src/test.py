@@ -1,30 +1,45 @@
+from pathlib import Path
+from datetime import datetime
+
 import torch
 from pytorch_lightning import Trainer
 from argparse import ArgumentParser
 
-from tasks import TestTask
+from models.effnets import EfficientNetLite0
+from tasks.test_task import TestTask
 from data_modules import ClassificationDataModule
 from utils.visualization import plot_confusion_matrix
-from models import SimpleNet
+
+
+def prepare_run(name, seed):
+    torch.manual_seed(seed)
+    all_runs_dir = Path("./runs")
+    date = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
+    run_name = str(date) + f'_{name}'
+    run_dir = all_runs_dir / run_name
+    test_res_dir = run_dir / 'results'
+    test_res_dir.mkdir(exist_ok=True, parents=True)
+    return run_dir, test_res_dir
 
 
 def main(params):
-    classes = ('c1', 'c2', 'c3', 'c4', 'c5', 'c6')
+    classes = ('Positive', 'Negative')
 
     dm = ClassificationDataModule(
         data_dir=params.data_path,
-        input_shape=(32, 32),
+        input_shape=(227, 277),
         classes=classes,
         val_split=0.0,
         test_split=1.0,
-        batch_size=32,
+        batch_size=1,
         shuffle=False,
         pin_memory=False,
         num_workers=4,
     )
-    network = SimpleNet(input_shape=dm.input_shape, num_classes=len(classes))
 
-    model = TestTask(dm, network, debug=False)
+    network = EfficientNetLite0(input_shape=dm.input_shape, num_classes=len(classes))
+
+    model = TestTask(dm, network, debug=True)
     model.load_state_dict(torch.load(params.weights_path))
     model.eval()
 

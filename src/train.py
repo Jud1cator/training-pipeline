@@ -1,7 +1,7 @@
 from pathlib import Path
 from datetime import datetime
-import torch
 
+import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import TensorBoardLogger
 
@@ -34,7 +34,7 @@ def main(
 
     Registry.init_modules()
 
-    logger = TensorBoardLogger(save_dir=run_dir, name='tb_logs')
+    logger = TensorBoardLogger(save_dir=str(run_dir), name='tb_logs')
 
     input_shape = tuple(datamodule['params']['input_shape'])
 
@@ -65,7 +65,9 @@ def main(
     torch.save(task.net.state_dict(), export_path / weights_fname)
 
     task.eval()
-    trainer.test(task, datamodule=dm)
+
+    if dm.has_test_data:
+        trainer.test(task, datamodule=dm)
 
     dummy_input = torch.randn(
         export_params['batch_size'], 3, input_shape[0], input_shape[1])

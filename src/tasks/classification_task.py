@@ -5,8 +5,7 @@ import numpy as np
 from registry import Registry
 from metrics import ConfusionMatrix
 from data_modules import ClassificationDataModule
-from utils.visualization import visualize_batch
-from utils.visualization import plot_confusion_matrix
+from utils.visualization import visualize_batch, plot_confusion_matrix
 
 
 class ClassificationTask(pl.LightningModule):
@@ -87,9 +86,12 @@ class ClassificationTask(pl.LightningModule):
 
     def test_epoch_end(self, outputs) -> None:
         cm = self.cm.get_confusion_matrix()
-        precision = np.diag(cm) / cm.sum(axis=0)
+        precision = self.cm.get_precision()
+        recall = self.cm.get_recall()
         avg_precision = precision.sum() / len(precision)
+        avg_recall = recall.sum() / len(recall)
         self.log('average_precision', avg_precision)
+        self.log('average_recall', avg_recall)
         plot_confusion_matrix(
             cm,
             path=self.res_dir/'confusion_matrix.png',
@@ -98,16 +100,13 @@ class ClassificationTask(pl.LightningModule):
         )
 
     def configure_optimizers(self):
-        opt = Registry.OPTIMIZERS[self.optimizer_dict['name']](
+        return_dict = dict()
+        return_dict['optimizer'] = Registry.OPTIMIZERS[self.optimizer_dict['name']](
             self.net.parameters(), **self.optimizer_dict['params']
         )
-        sch = Registry.SCHEDULERS[self.scheduler_dict['name']](
-            opt, **self.scheduler_dict['params']
-        )
-        return {
-            'optimizer': opt,
-            'lr_scheduler': {
-                'scheduler': sch,
-                'monitor': 'val_loss'
-            }
-        }
+        if self.scheduler_dict:
+            return_dict['scheduler'] = Registry.SCHEDULERS[self.scheduler_dict['name']](
+                return_dict['optimizer'], **self.scheduler_dict['params']
+            )
+            return_dict['monitor'] = 'val_loss'
+        return return_dict

@@ -2,11 +2,10 @@ import pytorch_lightning as pl
 import numpy as np
 
 from metrics import ConfusionMatrix
-from utils.visualization import visualize_batch
-from utils.visualization import plot_confusion_matrix
+from utils.visualization import visualize_batch, plot_confusion_matrix
 
 
-class TestTask(pl.LightningModule):
+class TestClassificationTask(pl.LightningModule):
 
     def __init__(
         self,
@@ -41,9 +40,12 @@ class TestTask(pl.LightningModule):
 
     def test_epoch_end(self, outputs) -> None:
         cm = self.cm.get_confusion_matrix()
-        precision = np.diag(cm) / cm.sum(axis=0)
+        precision = self.cm.get_precision()
+        recall = self.cm.get_recall()
         avg_precision = precision.sum() / len(precision)
+        avg_recall = recall.sum() / len(recall)
         self.log('average_precision', avg_precision)
+        self.log('average_recall', avg_recall)
         plot_confusion_matrix(cm, categories=self.classes, sort=False)
 
     def load_state_dict(self, state_dict, strict: bool = True):

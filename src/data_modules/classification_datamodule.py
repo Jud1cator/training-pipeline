@@ -164,6 +164,7 @@ class ClassificationDataModule(LightningDataModule):
                 labels=[val_dataset.targets[i] for i in val_idx]
             )
             self.test_set = test_dataset
+        self.has_test_data = len(self.test_set) > 0
 
     def prepare_data(self, *args, **kwargs):
         pass
@@ -231,7 +232,8 @@ class ClassificationDataModule(LightningDataModule):
 
     def val_transforms(self) -> Callable:
         transform = tf.Compose([
-            ResizePad(self.input_shape),
+            tf.Resize(self.input_shape),
+            # ResizePad(self.input_shape),
             tf.ToTensor(),
         ])
         return transform
