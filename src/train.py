@@ -5,8 +5,8 @@ import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import TensorBoardLogger
 
-from utils.helpers import create_config_parser
 from registry import Registry
+from utils.helpers import create_config_parser
 
 
 def prepare_run(name, seed):

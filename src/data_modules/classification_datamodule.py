@@ -41,7 +41,7 @@ class ClassificationDataModule(LightningDataModule):
         input_shape: Tuple[int, int],
         classes: Tuple[str, ...],
         batch_size: int,
-        val_split: float,
+        val_split: float = 0.0,
         test_split: float = 0.0,
         num_workers: int = 8,
         test_data_dir: str = None,

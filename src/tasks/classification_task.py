@@ -27,7 +27,7 @@ class ClassificationTask(pl.LightningModule):
         self.num_classes = len(self.classes)
 
         class_weights = datamodule.class_weights if loss['weighted'] else None
-        print(class_weights)
+
         self.loss = Registry.LOSSES[loss['name']](
             weight=class_weights, **loss['params']
         )
@@ -69,12 +69,21 @@ class ClassificationTask(pl.LightningModule):
             self.visualize_val = False
         pred = self(img)
         loss_val = self.loss(pred, true)
+        pred = np.argmax(self(img).cpu().numpy(), axis=1)
+        self.cm.update(true.cpu().numpy(), pred)
         self.log('val_loss', loss_val)
         return {'val_loss': loss_val}
 
     def validation_epoch_end(self, outputs):
         loss_val = torch.stack([x['val_loss'] for x in outputs]).mean()
         self.log('val_loss', loss_val)
+        precision = self.cm.get_precision()
+        recall = self.cm.get_recall()
+        avg_precision = precision.sum() / len(precision)
+        avg_recall = recall.sum() / len(recall)
+        self.log('average_precision', avg_precision, prog_bar=True)
+        self.log('average_recall', avg_recall, prog_bar=True)
+        self.cm.reset()
 
     def test_step(self, batch, batch_idx, *args, **kwargs):
         img, true = batch
@@ -85,7 +94,6 @@ class ClassificationTask(pl.LightningModule):
         self.cm.update(true.cpu().numpy(), pred)
 
     def test_epoch_end(self, outputs) -> None:
-        cm = self.cm.get_confusion_matrix()
         precision = self.cm.get_precision()
         recall = self.cm.get_recall()
         avg_precision = precision.sum() / len(precision)
@@ -93,7 +101,7 @@ class ClassificationTask(pl.LightningModule):
         self.log('average_precision', avg_precision)
         self.log('average_recall', avg_recall)
         plot_confusion_matrix(
-            cm,
+            self.cm.get_confusion_matrix(),
             path=self.res_dir/'confusion_matrix.png',
             categories=self.classes,
             sort=False

@@ -21,7 +21,7 @@ def main(
         input_shape=input_shape, **model_params
     )
 
-    model.load_state_dict(model_checkpoint)
+    model.load_state_dict(model_checkpoint, )
     model.eval()
 
     torch.onnx.export(

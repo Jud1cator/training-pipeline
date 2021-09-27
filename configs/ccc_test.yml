@@ -1,0 +1,27 @@
+run_params:
+  name: concrete_cracks_classification_test
+  seed: 1
+
+datamodule:
+  name: ClassificationDataModule
+  params:
+    data_dir: "/home/judicator/d/data/concrete_test"
+    test_split: 1.0
+    classes:
+      - Negative
+      - Positive
+    input_shape: [227, 227]
+    batch_size: 32
+
+task:
+  name: TestClassificationTask
+  params:
+    debug: False
+
+    network:
+      name: EfficientNetLite0
+      params:
+        checkpoint_path: "/home/judicator/study/training-pipeline/trained_models/ccc_model.json"
+
+trainer_params:
+  {}

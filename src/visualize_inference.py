@@ -20,7 +20,7 @@ def load_model_for_inference(params):
     model_checkpoint = torch.load(params.model_path)
     network_config = get_efficientdet_config('efficientdet_d0')
     model = EfficientDet(network_config)
-    model.load_state_dict(model_checkpoint['state_dict'])
+    model.load_state_dict(model_checkpoint['state_dict'], )
     model.eval()
     return model
 

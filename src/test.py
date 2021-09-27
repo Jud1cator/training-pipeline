@@ -3,11 +3,9 @@ from datetime import datetime
 
 import torch
 from pytorch_lightning import Trainer
-from argparse import ArgumentParser
 
-from models.effnets import EfficientNetLite0
-from tasks.test_task import TestTask
-from data_modules import ClassificationDataModule
+from registry import Registry
+from utils.helpers import create_config_parser
 from utils.visualization import plot_confusion_matrix
 
 
@@ -22,43 +20,25 @@ def prepare_run(name, seed):
     return run_dir, test_res_dir
 
 
-def main(params):
-    classes = ('Positive', 'Negative')
+def main(
+        run_params,
+        datamodule,
+        task,
+        trainer_params
+):
+    run_dir, res_dir = prepare_run(**run_params)
 
-    dm = ClassificationDataModule(
-        data_dir=params.data_path,
-        input_shape=(227, 277),
-        classes=classes,
-        val_split=0.0,
-        test_split=1.0,
-        batch_size=1,
-        shuffle=False,
-        pin_memory=False,
-        num_workers=4,
-    )
+    Registry.init_modules()
 
-    network = EfficientNetLite0(input_shape=dm.input_shape, num_classes=len(classes))
+    dm = Registry.DATA_MODULES[datamodule['name']](**datamodule['params'])
 
-    model = TestTask(dm, network, debug=True)
-    model.load_state_dict(torch.load(params.weights_path))
-    model.eval()
+    task = Registry.TASKS[task['name']](datamodule=dm, res_dir=res_dir, **task['params'])
 
-    trainer = Trainer()
+    trainer = Trainer(**trainer_params)
 
-    trainer.test(model, datamodule=dm)
-    cm = model.cm.get_confusion_matrix()
-    plot_confusion_matrix(cm, categories=classes, sort=False)
+    trainer.test(task, datamodule=dm)
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser()
-    parser.add_argument(
-        "-d", "--data-path", required=True,
-        help="Path to folder with test images"
-    )
-    parser.add_argument(
-        "-w", "--weights-path", required=True,
-        help="Path to .json file with model weights"
-    )
-    params = parser.parse_args()
-    main(params)
+    _, config = create_config_parser()
+    main(**config)

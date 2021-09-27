@@ -6,10 +6,7 @@ omegaconf~=2.1.0
 opencv-python~=4.5.3.56
 matplotlib~=3.4.2
 seaborn~=0.11.1
-matplotlib
-seaborn
 scikit-learn~=0.24.2
-
 numpy~=1.21.0
 PyYAML~=5.4.1
 geffnet~=1.0.2
