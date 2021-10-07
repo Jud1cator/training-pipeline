@@ -17,7 +17,7 @@ class ClassificationTask(pl.LightningModule):
             network: dict,
             loss: dict,
             optimizer: dict,
-            scheduler: dict,
+            scheduler: dict = None,
             debug: bool = False,
             res_dir=None,
             **kwargs
@@ -98,16 +98,17 @@ class ClassificationTask(pl.LightningModule):
         )
 
     def configure_optimizers(self):
+        config = {}
         opt = Registry.OPTIMIZERS[self.optimizer_dict['name']](
             self.net.parameters(), **self.optimizer_dict['params']
         )
-        sch = Registry.SCHEDULERS[self.scheduler_dict['name']](
-            opt, **self.scheduler_dict['params']
-        )
-        return {
-            'optimizer': opt,
-            'lr_scheduler': {
+        config['optimizer'] = opt
+        if self.scheduler_dict:
+            sch = Registry.SCHEDULERS[self.scheduler_dict['name']](
+                opt, **self.scheduler_dict['params']
+            )
+            config['lr_scheduler'] = {
                 'scheduler': sch,
                 'monitor': 'val_loss'
             }
-        }
+        return config

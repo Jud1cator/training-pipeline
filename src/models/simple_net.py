@@ -2,11 +2,11 @@ from typing import Tuple
 
 from torch import nn
 
-from models import MetaModel
+from models import AbstractModel
 from utils.blocks import ConvBlock
 
 
-class SimpleNet(MetaModel):
+class SimpleNet(AbstractModel):
     def __init__(
             self,
             input_shape: Tuple[int, int],

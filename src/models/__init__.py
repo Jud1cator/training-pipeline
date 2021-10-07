@@ -1,1 +1,1 @@
-from .metamodel import MetaModel
+from .abstract_model import AbstractModel

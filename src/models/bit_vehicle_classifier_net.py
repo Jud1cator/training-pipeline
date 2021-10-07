@@ -1,10 +1,10 @@
 from torch import nn
 
-from models import MetaModel
+from models import AbstractModel
 from utils.blocks import ConvBlock
 
 
-class BITVehicleClassifierNet(MetaModel):
+class BITVehicleClassifierNet(AbstractModel):
     def __init__(
             self,
             input_shape,

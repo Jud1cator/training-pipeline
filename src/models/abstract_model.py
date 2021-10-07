@@ -3,7 +3,7 @@ from typing import Tuple
 from torch.nn import Module
 
 
-class MetaModel(Module):
+class AbstractModel(Module):
     def __init__(
             self,
             input_shape: Tuple[int, int],

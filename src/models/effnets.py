@@ -3,10 +3,10 @@ from typing import Union
 import torch
 from geffnet import efficientnet_b0, efficientnet_lite0
 
-from models import MetaModel
+from models import AbstractModel
 
 
-class EfficientNetB0(MetaModel):
+class EfficientNetB0(AbstractModel):
     def __init__(self, input_shape=(224, 224), num_classes=1000,
                  pretrained=True, **kwargs):
         super().__init__(input_shape, num_classes, **kwargs)
@@ -20,7 +20,7 @@ class EfficientNetB0(MetaModel):
         return self.model
 
 
-class EfficientNetLite0(MetaModel):
+class EfficientNetLite0(AbstractModel):
     def __init__(self,
                  input_shape=(224, 224),
                  num_classes=1000,
@@ -39,7 +39,5 @@ class EfficientNetLite0(MetaModel):
     def get_model(self):
         return self.model
 
-    def from_checkpoint(self, path: Union[str, None]):
-        if path:
-            model_checkpoint = torch.load(path)
-            self.get_model().load_state_dict(model_checkpoint, strict=False)
+    def load_state_dict(self, state_dict, *args, **kwargs):
+        self.model.load_state_dict(state_dict, *args, **kwargs)
