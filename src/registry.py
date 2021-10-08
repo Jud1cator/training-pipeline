@@ -1,6 +1,6 @@
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from torch.nn import CrossEntropyLoss
-from torch.optim import Adam
+from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 import pkgutil
@@ -14,14 +14,15 @@ import tasks
 
 
 class Registry:
-    DATA_MODULES = dict()
+    DATA_MODULES = {}
     LOSSES = {
         'CrossEntropyLoss': CrossEntropyLoss
     }
-    METRICS = dict()
-    MODELS = dict()
-    TASKS = dict()
+    METRICS = {}
+    MODELS = {}
+    TASKS = {}
     OPTIMIZERS = {
+        'SGD': SGD,
         'Adam': Adam
     }
     SCHEDULERS = {

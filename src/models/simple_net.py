@@ -7,16 +7,11 @@ from utils.blocks import ConvBlock
 
 
 class SimpleNet(AbstractModel):
-    def __init__(
-            self,
-            input_shape: Tuple[int, int],
-            num_classes: int,
-            **kwargs
-    ):
-        super().__init__(input_shape, num_classes, **kwargs)
-        input_shape = tuple(input_shape)
+    def __init__(self, input_resolution: Tuple[int, int], num_classes: int):
+        super().__init__()
+        input_resolution = tuple(input_resolution)
         self.conv1 = ConvBlock(3, 32)
-        shape = self.conv1.get_output_shape(input_shape)
+        shape = self.conv1.get_output_shape(input_resolution)
         self.conv2 = ConvBlock(32, 64)
         shape = self.conv2.get_output_shape(shape)
         self.conv3 = ConvBlock(64, 128)

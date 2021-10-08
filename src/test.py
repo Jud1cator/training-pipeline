@@ -31,7 +31,7 @@ def main(params):
     trainer = Trainer()
 
     trainer.test(model, datamodule=dm)
-    cm = model.cm.get_confusion_matrix()
+    cm = model.cm.get_value()
     plot_confusion_matrix(cm, categories=classes, sort=False)
 
 
