@@ -1,7 +1,0 @@
-model_path: "trained_models/sn6.json"
-model_class: SimpleNet
-model_params:
-  input_width: 32
-  input_height: 32
-  num_classes: 6
-output_path: "trained_models/sn6"

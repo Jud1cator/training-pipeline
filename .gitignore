@@ -1,7 +1,5 @@
-*/__pycache__/*
+*.pyc
 .idea
-lightning_logs
-trained_models
 runs
+trained_models
 venv
-
