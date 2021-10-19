@@ -5,14 +5,14 @@ run_params:
 datamodule:
   name: ClassificationDataModule
   params:
-    data_dir: "/home/judicator/d/data/concrete_test"
+    data_dir: "/path/to/train/dataset/folder"
+    test_data_dir: "/path/to/test/dataset/folder"
     classes:
-      - Negative
-      - Positive
-    input_shape: [227, 227]
+      - class1
+      - class2
+    input_shape: [224, 224]
     val_split: 0.1
-    test_split: 0.1
-    batch_size: 8
+    batch_size: 32
     use_weighted_sampler: False
     pin_memory: True
 
@@ -30,6 +30,7 @@ task:
         is_weighted: False
     metrics:
       - name: Precision
+      - name: Recall
     optimizer:
       name: Adam
       params:
