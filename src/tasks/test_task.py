@@ -40,7 +40,7 @@ class TestTask(pl.LightningModule):
         self.cm.update(true.cpu().numpy(), pred)
 
     def test_epoch_end(self, outputs) -> None:
-        cm = self.cm.get_confusion_matrix()
+        cm = self.cm.get_value()
         precision = np.diag(cm) / cm.sum(axis=0)
         avg_precision = precision.sum() / len(precision)
         self.log('average_precision', avg_precision)

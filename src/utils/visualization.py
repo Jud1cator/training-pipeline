@@ -1,3 +1,5 @@
+from typing import Union, Optional
+
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn
@@ -13,54 +15,38 @@ def visualize_batch(img_batch):
 
 
 def plot_confusion_matrix(
-        cm,
-        categories='auto',
-        count=True,
-        percent=True,
-        cbar=True,
-        xyticks=True,
-        xyplotlabels=True,
-        sum_stats=True,
-        cmap='Blues',
-        title=None,
-        sort=True,
-        path=None
+        cm: np.ndarray,
+        categories: Union[str, list] = 'auto',
+        count: bool = True,
+        percent: bool = True,
+        cbar: bool = True,
+        xyticks: bool = True,
+        xyplotlabels: bool = True,
+        sum_stats: bool = True,
+        cmap: Optional[str] = 'Blues',
+        sort: bool = True,
+        title: Optional[str] = None,
+        save_path: Optional[str] = None,
+        show: bool = True
 ):
-    '''
+    """
     Plot Confusion Matrix cm using a Seaborn heatmap visualization
 
-    Args:
-        cm (np.ndarray): Confusion matrix
-
-        categories (str, optional): List of strings containing the
-        categories to be displayed on the x,y axis
-
-        count (bool, optional): If True, show counts in the
-        confusion matrix cells
-
-        percent (bool, optional): If True, show relative percentage in
-        the confusion matrix cells
-
-        cbar (bool, optional): If True, show the color bar.
-        The cbar values are based off the values in the confusion matrix
-
-        xyticks (bool, optional): If True, show x and y ticks
-
-        xyplotlabels (bool, optional): If True, show 'True Labels' and
-        'Predicted Labels' on the figure
-
-        sum_stats (bool, optional): If True, display summary statistics
-        below the figure
-
-        cmap (str, optional): Colormap of the values displayed
-        from matplotlib.pyplot.cm
-
-        sort(bool, optional): If True, Confusion Matrix will be sorted
-        based on the diagonal values
-
-        path (None, optional): Path to save the plot to. Shows the plot
-        on the screen if path is None
-    '''
+    :param cm: 2D numpy array with confusion matrix
+    :param categories: List of strings containing the categories to be displayed on the x,y axis
+    :param count: If True, show counts in the confusion matrix cells
+    :param percent: If True, show relative percentage in the confusion matrix cells
+    :param cbar: If True, show the color bar. The cbar values are based off the values in the
+        confusion matrix
+    :param xyticks: If True, show x and y ticks
+    :param xyplotlabels: If True, show 'True Labels' and 'Predicted Labels' on the figure
+    :param sum_stats: If True, display summary statistics below the figure
+    :param cmap: Colormap of the values displayed from matplotlib.pyplot.cm
+    :param sort: If True, Confusion Matrix will be sorted based on the diagonal values
+    :param title: Title for confusion matrix plot
+    :param save_path: Path where to save consufion matrix plot
+    :param show: Whether to show the confusion matrix plot
+    """
     epsilon = 1e-7
 
     # Sort Confusion matrix if needed
@@ -133,6 +119,7 @@ def plot_confusion_matrix(
     if title:
         plt.title(title)
 
-    if path is not None:
-        plt.savefig(path)
-    plt.show()
+    if save_path is not None:
+        plt.savefig(save_path)
+    if show:
+        plt.show()

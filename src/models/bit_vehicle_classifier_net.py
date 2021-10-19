@@ -5,15 +5,10 @@ from utils.blocks import ConvBlock
 
 
 class BITVehicleClassifierNet(AbstractModel):
-    def __init__(
-            self,
-            input_shape,
-            num_classes,
-            **kwargs
-    ):
-        super().__init__(input_shape, num_classes, **kwargs)
+    def __init__(self, input_resolution, num_classes):
+        super().__init__()
         self.conv1 = ConvBlock(3, 32)
-        shape = self.conv1.get_output_shape(input_shape)
+        shape = self.conv1.get_output_shape(input_resolution)
         self.conv2 = ConvBlock(32, 64)
         shape = self.conv2.get_output_shape(shape)
         n_features = 64 * shape[0] * shape[1]

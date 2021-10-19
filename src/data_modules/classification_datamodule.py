@@ -1,4 +1,5 @@
-from typing import Any, Callable, Optional, Tuple
+import os
+from typing import Any, Callable, Optional, List
 
 import torch
 import numpy as np
@@ -7,18 +8,18 @@ from torch.utils.data import DataLoader, Subset, Dataset
 from torchvision import transforms as tf
 from torchvision.datasets import ImageFolder
 from sklearn.model_selection import train_test_split
+from pydantic import validate_arguments
 
 from utils.transforms import ResizePad
 
 
 class SubsetWithTargets(Dataset):
-    r"""
+    """
     Subset of a dataset at specified indices.
 
-    Arguments:
-        dataset (Dataset): The whole Dataset
-        indices (sequence): Indices in the whole set selected for subset
-        labels(sequence) : targets as required for the indices. will be the same length as indices
+    :param dataset: torch.utils.data.Dataset object
+    :param indices: sequence of indexes to sample from the dataset
+    :param labels: sequence of class labels of the dataset
     """
     def __init__(self, dataset, indices, labels):
         self.dataset = Subset(dataset, indices)
@@ -35,51 +36,47 @@ class SubsetWithTargets(Dataset):
 
 class ClassificationDataModule(LightningDataModule):
 
+    @validate_arguments
     def __init__(
         self,
         data_dir: str,
-        input_shape: Tuple[int, int],
-        classes: Tuple[str, ...],
+        classes: List[str],
         batch_size: int,
         val_split: float,
+        input_shape: List[int] = None,
         test_split: float = 0.0,
-        num_workers: int = 8,
+        num_workers: int = os.cpu_count(),
         test_data_dir: str = None,
         shuffle: bool = True,
         pin_memory: bool = True,
         drop_last: bool = False,
         use_weighted_sampler: bool = True,
-        *args: Any,
-        **kwargs: Any,
     ) -> None:
         """
-        Args:
-            :param data_dir: path to folder with data
-            :param input_shape: model input image resolution
-            :param classes: tuple with class names
-            :param val_split: proportion of validation test
-            :param test_split: proportion of test set (if test_data_dir is None)
-            :param batch_size: the batch size
-            :param num_workers: how many workers to use for loading data
-            :param test_data_dir: path to folder with test data
-            :param shuffle: if true shuffles the data every epoch
-            :param pin_memory: if true, the data loader will copy Tensors
-            into CUDA pinned memory before returning them
-            :param drop_last: If true drops the last incomplete batch
-            :param use_weighted_sampler: if true, use WeightedRandomSampler
-            for train dataset
+        :param data_dir: path to folder with data
+        :param input_shape: list with model input image resolution
+        :param classes: list with class names
+        :param val_split: proportion of validation test
+        :param test_split: proportion of test set (if test_data_dir is None)
+        :param batch_size: the batch size
+        :param num_workers: how many workers to use for loading data
+        :param test_data_dir: path to folder with test data
+        :param shuffle: if true shuffles the data every epoch
+        :param pin_memory: if true, the data loader will copy Tensors into CUDA pinned memory
+            before returning them
+        :param drop_last: If true drops the last incomplete batch
+        :param use_weighted_sampler: if true, use WeightedRandomSampler for train dataset
         """
 
-        super().__init__(*args, **kwargs)
+        super().__init__()
         self.data_dir = data_dir
-        self.classes = classes
-        self.num_classes = len(classes)
+        self.input_shape = tuple(input_shape) if input_shape else input_shape
+        self.classes = tuple(classes)
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.shuffle = shuffle
         self.pin_memory = pin_memory
         self.drop_last = drop_last
-        self.input_shape = input_shape
         self.use_weighted_sampler = use_weighted_sampler
 
         train_dataset = ImageFolder(
@@ -117,7 +114,7 @@ class ClassificationDataModule(LightningDataModule):
                     train_test_split(
                         idx,
                         train_size=train_len,
-                        test_size=test_len + val_len,
+                        test_size=test_len+val_len,
                         stratify=train_dataset.targets,
                     )
                 test_idx = []
@@ -127,7 +124,7 @@ class ClassificationDataModule(LightningDataModule):
                             val_idx,
                             train_size=val_len,
                             test_size=test_len,
-                            stratify=train_dataset.targets,
+                            stratify=[train_dataset.targets[i] for i in val_idx],
                         )
             self.train_set = SubsetWithTargets(
                 train_dataset,
@@ -150,7 +147,7 @@ class ClassificationDataModule(LightningDataModule):
                 train_test_split(
                     idx,
                     train_size=train_len,
-                    test_size=test_len + val_len,
+                    test_size=test_len+val_len,
                     stratify=train_dataset.targets,
                 )
             self.train_set = SubsetWithTargets(
@@ -224,7 +221,6 @@ class ClassificationDataModule(LightningDataModule):
         transform = tf.Compose([
             ResizePad(self.input_shape),
             tf.RandomHorizontalFlip(p=0.5),
-            # tf.GaussianBlur(kernel_size=3),
             tf.ToTensor(),
         ])
         return transform

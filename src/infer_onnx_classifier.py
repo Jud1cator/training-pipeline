@@ -48,7 +48,7 @@ def main(params):
             ort_outs = ort_session.run(None, ort_inputs)[0]
             pred = np.argmax(softmax(ort_outs))
             cm.update(pred, int(c[1])-1)
-    print(cm.get_confusion_matrix())
+    print(cm.get_value())
 
 
 if __name__ == '__main__':
