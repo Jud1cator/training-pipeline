@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+
 def get_annotations_info(annotations_files):
     info = defaultdict(bool)
     parsed = defaultdict(list)
