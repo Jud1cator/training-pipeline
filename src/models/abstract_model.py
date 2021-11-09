@@ -5,10 +5,10 @@ from torch.nn import Module
 
 
 class AbstractModel(Module):
-    def forward(self, x):
-        pass
+    def forward(self, *args, **kwargs):
+        self.get_model().forward(*args, **kwargs)
 
-    def get_model(self):
+    def get_model(self, *args, **kwargs):
         return self
 
     def load_state_dict(self, state_dict: OrderedDict[str, Tensor], strict: bool = True):

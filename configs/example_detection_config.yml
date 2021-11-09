@@ -1,0 +1,42 @@
+run_params:
+  name: example_detection
+  seed: 1
+
+datamodule:
+  name: DetectionDataModule
+  params:
+    images_dir: "/home/judicator/d/ev/dvc/sbc_core/Datasets/ObjectDetection_c1_c3_c6_person/ev_datasets_coco/images"
+    annotation_files: "/home/judicator/d/ev/dvc/sbc_core/Datasets/ObjectDetection_c1_c3_c6_person/ev_datasets_coco/annotations/ev_2021_03.json"
+    image_size: [384, 384]
+    batch_size: 1
+    val_split: 0.1
+    test_split: 0.8
+
+task:
+  name: DetectionTask
+  params:
+    model:
+      name: RossMobileDetV2
+      params:
+        num_classes: 1
+        pretrained: True
+    optimizer:
+      name: Adam
+      params:
+        lr: 0.001
+    debug: True
+
+callbacks:
+  - name: ModelCheckpoint
+    params:
+      monitor: val_loss
+      mode: max
+      verbose: True
+
+trainer_params:
+  max_epochs: 1
+  gpus: 1
+
+export_params:
+  output_name: example_detection
+  batch_size: 8

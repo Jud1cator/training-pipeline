@@ -20,7 +20,9 @@ def prepare_run(name, seed):
     checkpoints_dir.mkdir(exist_ok=True, parents=True)
     test_res_dir = run_dir / 'results'
     test_res_dir.mkdir(exist_ok=True, parents=True)
-    return run_dir, checkpoints_dir, test_res_dir
+    weights_dir = run_dir / 'trained_models'
+    weights_dir.mkdir(exist_ok=True, parents=True)
+    return run_dir, checkpoints_dir, test_res_dir, weights_dir
 
 
 def main(
@@ -31,15 +33,12 @@ def main(
         trainer_params: dict,
         export_params: dict
 ):
-    run_dir, ckpt_dir, res_dir = prepare_run(**run_params)
+    run_dir, ckpt_dir, res_dir, weights_dir = prepare_run(**run_params)
 
     Registry.init_modules()
 
     datamodule = Config(**datamodule)
     task = Config(**task)
-
-    export_path = Path("./trained_models")
-    export_path.mkdir(exist_ok=True)
 
     dm = Registry.DATA_MODULES[datamodule.name](**datamodule.params)
 
@@ -63,10 +62,11 @@ def main(
     trainer.fit(task, datamodule=dm)
 
     weights_fname = '.'.join([export_params['output_name'], 'json'])
-    torch.save(task.net.state_dict(), export_path / weights_fname)
+    torch.save(task.net.state_dict(), weights_dir / weights_fname)
 
     task.eval()
-    trainer.test(task, datamodule=dm)
+    if dm.test_data:
+        trainer.test(task, datamodule=dm)
 
     input_shape = tuple(datamodule.params['input_shape'])
 
@@ -76,7 +76,7 @@ def main(
     torch.onnx.export(
         task.net,
         dummy_input,
-        export_path / onnx_fname,
+        weights_dir / onnx_fname,
         input_names=['input'],
         output_names=['output'],
     )

@@ -1,33 +1,74 @@
-from typing import Optional, Tuple, Union, List
 import os
 import warnings
 
+from typing import Optional, Union, List
+from pathlib import Path
+
+import torch
+import numpy as np
+import albumentations as A
+import PIL
+from albumentations.pytorch import ToTensorV2
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import random_split, Dataset, DataLoader
 from torchvision.datasets import CocoDetection
-from torchvision import transforms as tf
 
 from utils.dataset import get_annotations_info
-from utils.transforms import ResizePad
+from utils.visualization import show_image_coco
 
 
-def collate_fn(batch):
-    return tuple(zip(*batch))
+class CocoDetectionDataset(Dataset):
+    def __init__(self, img_dir, ann_file, transform=None):
+        super().__init__()
+        self.coco_dataset = CocoDetection(
+            root=img_dir,
+            annFile=ann_file
+        )
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.coco_dataset)
+
+    @staticmethod
+    def apply_transforms(transform, image, bboxes, labels):
+        tf = transform(image=image, bboxes=bboxes, class_ids=labels)
+        image = torch.tensor(np.float32(tf['image']) / 255)
+        bboxes = torch.tensor(
+            np.array(tf['bboxes'], dtype=np.float32).reshape((len(tf['bboxes']), 4)),
+            dtype=torch.float32
+        )
+        labels = torch.tensor(tf['class_ids'], dtype=torch.float32)
+        return image, bboxes, labels
+
+    def __getitem__(self, index):
+        image, ann = self.coco_dataset[index]
+        image = np.array(image, dtype=np.uint8)
+        bboxes = [a['bbox'] for a in ann]
+        labels = [a['category_id'] for a in ann]
+
+        if self.transform:
+            image, bboxes, labels = self.apply_transforms(self.transform, image, bboxes, labels)
+
+        return image, bboxes, labels
 
 
-class DatasetFromSubset(Dataset):
+class CocoDetectionSubset(Dataset):
     def __init__(self, subset, transform=None):
         self.subset = subset
         self.transform = transform
 
-    def __getitem__(self, index):
-        x, y = self.subset[index]
-        if self.transform:
-            x = self.transform(x)
-        return x, y
-
     def __len__(self):
         return len(self.subset)
+
+    def __getitem__(self, index):
+        image, bboxes, labels = self.subset[index]
+
+        if self.transform:
+            image, bboxes, labels = CocoDetectionDataset.apply_transforms(
+                self.transform, image, bboxes, labels
+            )
+
+        return image, bboxes, labels
 
 
 class DetectionDataModule(LightningDataModule):
@@ -36,7 +77,7 @@ class DetectionDataModule(LightningDataModule):
         self,
         images_dir: str,
         annotation_files: Union[List[str], str],
-        input_shape: Optional[Tuple[int, int]],
+        image_size: List[int],
         batch_size: int,
         val_split: float = 0.0,
         test_split: float = 0.0,
@@ -49,20 +90,22 @@ class DetectionDataModule(LightningDataModule):
     ) -> None:
         """
         Args:
-            :param data_dir: path to folder with data
-            :param input_shape: model input image resolution
+            :param images_dir: path to folder with images
+            :param annotation_files: path to annotation file(s)
+            :param input_size: required image size after preprocessing
             :param batch_size: the batch size
+            :param val_split: fraction of validation data
+            :param test_split: fraction of test data
             :param num_workers: how many workers to use for loading data
-            :param test_data_dir: path to folder with test data
             :param shuffle: if true shuffles the data every epoch
             :param pin_memory: if true, the data loader will copy Tensors 
                 into CUDA pinned memory before returning them
             :param drop_last: If true drops the last incomplete batch
         """
         super(DetectionDataModule, self).__init__(*args, **kwargs)
-        self.images_dir = images_dir
+        self.images_dir = Path(images_dir)
         self.annotations = annotation_files
-        self.input_shape = input_shape
+        self.image_size = tuple(image_size)
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.shuffle = shuffle
@@ -87,24 +130,38 @@ class DetectionDataModule(LightningDataModule):
             info, parsed = get_annotations_info(self.annotations)
 
             if info['val']:
-                warnings.warn('[!] val_split will not be considered, because validation set is already provided')
-                self.val_set = CocoDetection(self.images_dir, annFile=parsed['val_fn'], transform=self.val_transforms())
+                warnings.warn(
+                    '[!] val_split will not be considered, '
+                    'because validation set is already provided'
+                )
+                self.val_set = CocoDetectionDataset(
+                    self.images_dir, ann_file=parsed['val_fn'], transform=self.val_transforms()
+                )
 
             if info['test']:
-                warnings.warn('[!] test_split will not be considered, because test set is already provided')
-                self.test_set = CocoDetection(
-                    self.images_dir, annFile=parsed['test_fn'], transform=self.val_transforms())
+                warnings.warn(
+                    '[!] test_split will not be considered, because test set is already provided'
+                )
+                self.test_set = CocoDetectionDataset(
+                    self.images_dir, ann_file=parsed['test_fn'], transform=self.val_transforms()
+                )
             
             if info['unknown']:
-                warnings.warn('Unknown annotations are found. This annotations will be considered as train set')
-                self.train_set = CocoDetection(
-                    self.images_dir, annFile=parsed['unknown'], transform=self.train_transforms())
+                warnings.warn(
+                    'Unknown annotations are found. '
+                    'This annotations will be considered as train set'
+                )
+                self.train_set = CocoDetectionDataset(
+                    self.images_dir, ann_file=parsed['unknown'], transform=self.train_transforms()
+                )
             else:
-                self.train_set = CocoDetection(
-                    self.images_dir, annFile=parsed['train_fn'], transform=self.train_transforms())
+                self.train_set = CocoDetectionDataset(
+                    self.images_dir, ann_file=parsed['train_fn'], transform=self.train_transforms()
+                )
+
         elif type(self.annotations) is str:
             # load annotation file and split it on train, val, test
-            dataset = CocoDetection(self.images_dir, annFile=self.annotations)
+            dataset = CocoDetectionDataset(self.images_dir, ann_file=self.annotations)
             total_len = len(dataset)
 
             # compute lengths for sets based on ratios
@@ -117,9 +174,9 @@ class DetectionDataModule(LightningDataModule):
             train_data, val_data, test_data = random_split(dataset, lengths)
 
             # generate datasets out of subsets with denoted transforms
-            self.train_set = DatasetFromSubset(train_data, transform=self.train_transforms())
-            self.val_set = DatasetFromSubset(val_data, transform=self.val_transforms())
-            self.test_set = DatasetFromSubset(test_data, transform=self.val_transforms())
+            self.train_set = CocoDetectionSubset(train_data, transform=self.train_transforms())
+            self.val_set = CocoDetectionSubset(val_data, transform=self.val_transforms())
+            self.test_set = CocoDetectionSubset(test_data, transform=self.val_transforms())
         else:
             raise TypeError(f"Unacceptable type of annotations: {type(self.annotations)}")
 
@@ -137,7 +194,7 @@ class DetectionDataModule(LightningDataModule):
             drop_last=self.drop_last,
             pin_memory=self.pin_memory,
             shuffle=self.shuffle,
-            collate_fn=collate_fn
+            collate_fn=self.collate_fn
         )
         return loader
 
@@ -149,7 +206,7 @@ class DetectionDataModule(LightningDataModule):
             num_workers=self.num_workers,
             drop_last=self.drop_last,
             pin_memory=self.pin_memory,
-            collate_fn=collate_fn
+            collate_fn=self.collate_fn
         )
         return loader
 
@@ -161,21 +218,43 @@ class DetectionDataModule(LightningDataModule):
             num_workers=self.num_workers,
             drop_last=self.drop_last,
             pin_memory=self.pin_memory,
-            collate_fn=collate_fn
+            collate_fn=self.collate_fn
         )
         return loader
     
     def train_transforms(self):
-        transform = tf.Compose([
-            ResizePad(self.input_shape),
-            tf.RandomHorizontalFlip(p=0.5),
-            tf.ToTensor(),
-        ])
+        transform = A.Compose(
+            [
+                A.RandomCrop(height=self.image_size[0], width=self.image_size[1]),
+                A.HorizontalFlip(p=0.5),
+                A.RandomBrightnessContrast(p=0.5),
+                ToTensorV2()
+            ],
+            bbox_params=A.BboxParams(
+                format='coco', min_area=1000, min_visibility=0.3, label_fields=['class_ids']
+            )
+        )
         return transform
 
     def val_transforms(self):
-        transform = tf.Compose([
-            ResizePad(self.input_shape),
-            tf.ToTensor(),
-        ])
+        transform = A.Compose(
+            [
+                A.CenterCrop(height=self.image_size[0], width=self.image_size[1]),
+                ToTensorV2()
+            ],
+            bbox_params=A.BboxParams(
+                format='coco', min_area=1000, min_visibility=0.3, label_fields=['class_ids']
+            )
+        )
         return transform
+
+    @staticmethod
+    def collate_fn(batch):
+        images, boxes, labels = [], [], []
+        for item in batch:
+            images.append(item[0])
+            boxes.append(item[1])
+            labels.append(item[2])
+        images = torch.stack(images)
+
+        return images, boxes, labels
