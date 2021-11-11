@@ -106,18 +106,23 @@ class ClassificationTask(pl.LightningModule):
         self.confusion_matrix.update(prediction, target.cpu().numpy())
 
     def test_epoch_end(self, outputs) -> None:
+        title_string = []
+        for metric_name, metric in self.metrics.items():
+            key = '_'.join(['test', metric_name.lower()])
+            value = metric.get_value(self.confusion_matrix.get_value())
+            title_string.append('='.join([str(key), '{:.2f}'.format(value)]))
+            self.log(key, value, logger=False, prog_bar=True)
+            self.logger.log_metrics({key: value}, step=self.current_epoch)
+        title_string = ', '.join(title_string)
         save_path = self.res_dir / 'confusion_matrix.png' if self.res_dir else None
         plot_confusion_matrix(
             self.confusion_matrix.get_value(),
+            title=title_string,
             categories=self.classes,
             save_path=save_path,
             sort=False,
             show=True
         )
-        for metric_name, metric in self.metrics.items():
-            key = '_'.join(['test', metric_name.lower()])
-            value = metric.get_value(self.confusion_matrix.get_value())
-            self.logger.log_metrics({key: value}, step=self.current_epoch)
 
     def configure_optimizers(self):
         config = {}

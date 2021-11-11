@@ -40,9 +40,9 @@ class ClassificationDataModule(LightningDataModule):
     def __init__(
         self,
         data_dir: str,
-        classes: List[str],
         batch_size: int,
         val_split: float,
+        classes: List[str] = None,
         input_shape: List[int] = None,
         test_split: float = 0.0,
         num_workers: int = os.cpu_count(),
@@ -71,7 +71,6 @@ class ClassificationDataModule(LightningDataModule):
         super().__init__()
         self.data_dir = data_dir
         self.input_shape = tuple(input_shape) if input_shape else input_shape
-        self.classes = tuple(classes)
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.shuffle = shuffle
@@ -83,6 +82,7 @@ class ClassificationDataModule(LightningDataModule):
             self.data_dir,
             transform=self.train_transforms()
         )
+        self.classes = tuple(classes) if classes else train_dataset.classes
         val_dataset = ImageFolder(
             self.data_dir,
             transform=self.val_transforms()
