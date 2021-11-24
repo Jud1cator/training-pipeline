@@ -7,14 +7,13 @@ from pathlib import Path
 import torch
 import numpy as np
 import albumentations as A
-import PIL
+
 from albumentations.pytorch import ToTensorV2
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import random_split, Dataset, DataLoader
+from torch.utils.data import random_split, Dataset, DataLoader, Subset
 from torchvision.datasets import CocoDetection
 
 from utils.dataset import get_annotations_info
-from utils.visualization import show_image_coco
 
 
 class CocoDetectionDataset(Dataset):
@@ -25,19 +24,34 @@ class CocoDetectionDataset(Dataset):
             annFile=ann_file
         )
         self.transform = transform
+        if self.transform:
+            print('Filtering valid images...')
+            valid_ids = []
+            print(f'0/{len(self.coco_dataset.ids)}')
+            for i in range(len(self.coco_dataset)):
+                if i % 100 == 0:
+                    print("\033[A\033[A")
+                    print(f'{i}/{len(self.coco_dataset.ids)}')
+
+                image, bboxes, labels = self.__getitem__(i)
+                if len(bboxes) > 0:
+                    valid_ids.append(i)
+            print("\033[A\033[A")
+            print(f'Kept {len(valid_ids)}/{len(self.coco_dataset)} images')
+            self.coco_dataset = Subset(self.coco_dataset, valid_ids)
 
     def __len__(self):
         return len(self.coco_dataset)
 
     @staticmethod
     def apply_transforms(transform, image, bboxes, labels):
-        tf = transform(image=image, bboxes=bboxes, class_ids=labels)
+        tf = transform(image=image, bboxes=bboxes, labels=labels)
         image = torch.tensor(np.float32(tf['image']) / 255)
         bboxes = torch.tensor(
             np.array(tf['bboxes'], dtype=np.float32).reshape((len(tf['bboxes']), 4)),
             dtype=torch.float32
         )
-        labels = torch.tensor(tf['class_ids'], dtype=torch.float32)
+        labels = torch.tensor(tf['labels'], dtype=torch.float32)
         return image, bboxes, labels
 
     def __getitem__(self, index):
@@ -56,17 +70,37 @@ class CocoDetectionSubset(Dataset):
     def __init__(self, subset, transform=None):
         self.subset = subset
         self.transform = transform
+        if self.transform:
+            print('Filtering valid images...')
+            valid_ids = []
+            print(f'0/{len(self.subset)}')
+            for i in range(len(self.subset)):
+                if i % 100 == 0:
+                    print("\033[A\033[A")
+                    print(f'{i}/{len(self.subset)}')
+
+                image, bboxes, labels = self.__getitem__(i)
+                if len(bboxes) > 0:
+                    valid_ids.append(i)
+            print("\033[A\033[A")
+            print(f'Kept {len(valid_ids)}/{len(self.subset)} images')
+            self.subset = Subset(self.subset, valid_ids)
 
     def __len__(self):
         return len(self.subset)
 
     def __getitem__(self, index):
         image, bboxes, labels = self.subset[index]
+        image = np.array(image, dtype=np.uint8)
 
         if self.transform:
             image, bboxes, labels = CocoDetectionDataset.apply_transforms(
                 self.transform, image, bboxes, labels
             )
+
+        for i in range(len(bboxes)):
+            x, y, h, w = bboxes[i]
+            bboxes[i] = torch.FloatTensor([y, x, y + h, x + w])
 
         return image, bboxes, labels
 
@@ -74,19 +108,19 @@ class CocoDetectionSubset(Dataset):
 class DetectionDataModule(LightningDataModule):
 
     def __init__(
-        self,
-        images_dir: str,
-        annotation_files: Union[List[str], str],
-        image_size: List[int],
-        batch_size: int,
-        val_split: float = 0.0,
-        test_split: float = 0.0,
-        num_workers: int = os.cpu_count(),
-        shuffle: bool = True,
-        pin_memory: bool = True,
-        drop_last: bool = False,
-        *args,
-        **kwargs
+            self,
+            images_dir: str,
+            annotation_files: Union[List[str], str],
+            image_size: List[int],
+            batch_size: int,
+            val_split: float = 0.0,
+            test_split: float = 0.0,
+            num_workers: int = os.cpu_count(),
+            shuffle: bool = True,
+            pin_memory: bool = True,
+            drop_last: bool = False,
+            *args,
+            **kwargs
     ) -> None:
         """
         Args:
@@ -98,7 +132,7 @@ class DetectionDataModule(LightningDataModule):
             :param test_split: fraction of test data
             :param num_workers: how many workers to use for loading data
             :param shuffle: if true shuffles the data every epoch
-            :param pin_memory: if true, the data loader will copy Tensors 
+            :param pin_memory: if true, the data loader will copy Tensors
                 into CUDA pinned memory before returning them
             :param drop_last: If true drops the last incomplete batch
         """
@@ -117,12 +151,12 @@ class DetectionDataModule(LightningDataModule):
             and {test_split} for test"
 
         self.parse_annotations(val_split, test_split)
-    
+
     def parse_annotations(self, val_ratio: float, test_ratio: float):
-        """Parse provided annotations. 
-            If there are several annotations files tries to parse them 
-            by the type (train, val, test). 
-            Otherwise, parse only one file and split it by provided 
+        """Parse provided annotations.
+            If there are several annotations files tries to parse them
+            by the type (train, val, test).
+            Otherwise, parse only one file and split it by provided
             ratios for sets.
         """
         if type(self.annotations) is list:
@@ -145,7 +179,7 @@ class DetectionDataModule(LightningDataModule):
                 self.test_set = CocoDetectionDataset(
                     self.images_dir, ann_file=parsed['test_fn'], transform=self.val_transforms()
                 )
-            
+
             if info['unknown']:
                 warnings.warn(
                     'Unknown annotations are found. '
@@ -176,7 +210,7 @@ class DetectionDataModule(LightningDataModule):
             # generate datasets out of subsets with denoted transforms
             self.train_set = CocoDetectionSubset(train_data, transform=self.train_transforms())
             self.val_set = CocoDetectionSubset(val_data, transform=self.val_transforms())
-            self.test_set = CocoDetectionSubset(test_data, transform=self.val_transforms())
+            # self.test_set = CocoDetectionSubset(test_data, transform=self.val_transforms())
         else:
             raise TypeError(f"Unacceptable type of annotations: {type(self.annotations)}")
 
@@ -221,17 +255,18 @@ class DetectionDataModule(LightningDataModule):
             collate_fn=self.collate_fn
         )
         return loader
-    
+
     def train_transforms(self):
         transform = A.Compose(
             [
-                A.RandomCrop(height=self.image_size[0], width=self.image_size[1]),
+                A.CenterCrop(height=480, width=480),
+                A.Resize(height=self.image_size[0], width=self.image_size[1]),
                 A.HorizontalFlip(p=0.5),
                 A.RandomBrightnessContrast(p=0.5),
                 ToTensorV2()
             ],
             bbox_params=A.BboxParams(
-                format='coco', min_area=1000, min_visibility=0.3, label_fields=['class_ids']
+                format='coco', min_area=0, min_visibility=0, label_fields=['labels']
             )
         )
         return transform
@@ -239,11 +274,12 @@ class DetectionDataModule(LightningDataModule):
     def val_transforms(self):
         transform = A.Compose(
             [
-                A.CenterCrop(height=self.image_size[0], width=self.image_size[1]),
+                A.CenterCrop(height=480, width=480),
+                A.Resize(height=self.image_size[0], width=self.image_size[1]),
                 ToTensorV2()
             ],
             bbox_params=A.BboxParams(
-                format='coco', min_area=1000, min_visibility=0.3, label_fields=['class_ids']
+                format='coco', min_area=0, min_visibility=0, label_fields=['labels']
             )
         )
         return transform
