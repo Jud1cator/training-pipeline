@@ -6,6 +6,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import pkgutil
 import inspect
 
+import adversarial_attacks
 import data_modules
 import losses
 import metrics
@@ -14,6 +15,7 @@ import tasks
 
 
 class Registry:
+    ATTACKS = {}
     DATA_MODULES = {}
     LOSSES = {
         'CrossEntropyLoss': CrossEntropyLoss
@@ -78,6 +80,7 @@ class Registry:
 
     @classmethod
     def init_modules(cls):
+        cls.register_module(adversarial_attacks, cls.ATTACKS)
         cls.register_module(data_modules, cls.DATA_MODULES)
         cls.register_module(losses, cls.LOSSES)
         cls.register_module(metrics, cls.METRICS)
