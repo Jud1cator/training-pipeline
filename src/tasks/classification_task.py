@@ -34,7 +34,7 @@ class ClassificationTask(pl.LightningModule):
         self.optimizer_config = Config(**optimizer)
         self.scheduler_dict = Config(**scheduler) if scheduler else None
 
-        self.net = Registry.MODELS[network.name](
+        self.model = Registry.MODELS[network.name](
             num_classes=self.num_classes, **network.params).get_model()
 
         class_weights = datamodule.class_weights if loss.params['is_weighted'] else None
@@ -54,7 +54,7 @@ class ClassificationTask(pl.LightningModule):
         self.res_dir = res_dir
 
     def forward(self, x):
-        return self.net(x)
+        return self.model(x)
 
     def training_step(self, batch, batch_idx):
         img, true = batch

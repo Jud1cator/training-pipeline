@@ -8,9 +8,9 @@ datamodule:
     images_dir: "/home/judicator/d/ev/dvc/sbc_core/Datasets/ObjectDetection_c1_c3_c6_person/ev_datasets_coco/images"
     annotation_files: "/home/judicator/d/ev/dvc/sbc_core/Datasets/ObjectDetection_c1_c3_c6_person/ev_datasets_coco/annotations/ev_2021_03.json"
     image_size: [384, 384]
-    batch_size: 1
-    val_split: 0.1
-    test_split: 0.8
+    batch_size: 4
+    val_split: 0.005
+    test_split: 0.99
 
 task:
   name: DetectionTask
@@ -39,4 +39,4 @@ trainer_params:
 
 export_params:
   output_name: example_detection
-  batch_size: 8
+  to_onnx: False

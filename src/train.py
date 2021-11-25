@@ -62,24 +62,26 @@ def main(
     trainer.fit(task, datamodule=dm)
 
     weights_fname = '.'.join([export_params['output_name'], 'json'])
-    torch.save(task.net.state_dict(), weights_dir / weights_fname)
+    torch.save(task.model.state_dict(), weights_dir / weights_fname)
 
     task.eval()
-    if dm.test_data:
+    if dm.test_set:
         trainer.test(task, datamodule=dm)
 
-    input_shape = tuple(datamodule.params['input_shape'])
+    if export_params['to_onnx']:
+        input_shape = tuple(datamodule.params['input_shape'])
+        batch_size = export_params.get('batch_size', 1)
 
-    dummy_input = torch.randn(export_params['batch_size'], 3, input_shape[0], input_shape[1])
+        dummy_input = torch.randn(batch_size, 3, input_shape[0], input_shape[1])
 
-    onnx_fname = export_params['output_name'] + ".onnx"
-    torch.onnx.export(
-        task.net,
-        dummy_input,
-        weights_dir / onnx_fname,
-        input_names=['input'],
-        output_names=['output'],
-    )
+        onnx_fname = export_params['output_name'] + ".onnx"
+        torch.onnx.export(
+            task.model,
+            dummy_input,
+            weights_dir / onnx_fname,
+            input_names=['input'],
+            output_names=['output'],
+        )
 
 
 if __name__ == '__main__':

@@ -211,6 +211,7 @@ class DetectionDataModule(LightningDataModule):
             self.train_set = CocoDetectionSubset(train_data, transform=self.train_transforms())
             self.val_set = CocoDetectionSubset(val_data, transform=self.val_transforms())
             # self.test_set = CocoDetectionSubset(test_data, transform=self.val_transforms())
+            self.test_set = None
         else:
             raise TypeError(f"Unacceptable type of annotations: {type(self.annotations)}")
 

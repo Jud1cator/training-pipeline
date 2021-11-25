@@ -1,11 +1,6 @@
 import pytorch_lightning as pl
 import torch
 
-from effdet.anchors import AnchorLabeler
-from effdet.bench import _post_process, _batch_detection
-
-from models.efficientdet.anchors import Anchors
-from losses.detection_loss import DetectionLoss
 from registry import Registry
 from utils.config_validation import Config
 from utils.visualization import visualize_batch, visualize_with_boxes
@@ -16,7 +11,6 @@ class DetectionTask(pl.LightningModule):
 
     def __init__(
             self,
-            datamodule,
             model: dict,
             optimizer: dict,
             scheduler: dict = None,
@@ -36,8 +30,47 @@ class DetectionTask(pl.LightningModule):
         self.visualize_test = debug
 
     def forward(self, x, true_boxes, true_labels):
-        target = {'box': true_boxes, 'cls': true_labels}
+        target = {'bbox': true_boxes, 'cls': true_labels, 'img_scale': None, 'img_size': None}
         return self.model(x, target)
+
+    def log_loss(self, loss_dict, prefix=''):
+        for name, item in loss_dict.items():
+            if name == 'detections':
+                continue
+            name = f'{prefix}_{name}'
+            self.log(name, item, logger=False, prog_bar=True)
+
+    def log_metrics(self, metrics_dict, prefix=''):
+        for name, item in metrics_dict.items():
+            if name == 'detections':
+                continue
+            name = f'{prefix}_{name}'
+            self.logger.log_metrics({name: item}, step=self.current_epoch)
+
+    def aggregate_prediction_outputs(self, outputs):
+
+        detections = torch.cat([output["batch_predictions"]["predictions"] for output in outputs])
+
+        image_ids = []
+        targets = []
+        for output in outputs:
+            batch_predictions = output["batch_predictions"]
+            image_ids.extend(batch_predictions["image_ids"])
+            targets.extend(batch_predictions["targets"])
+
+        (
+            predicted_bboxes,
+            predicted_class_confidences,
+            predicted_class_labels
+        ) = self.post_process_detections(detections)
+
+        return (
+            predicted_class_labels,
+            image_ids,
+            predicted_bboxes,
+            predicted_class_confidences,
+            targets,
+        )
 
     def training_step(self, batch, batch_idx):
         images, true_boxes, true_labels = batch
@@ -46,14 +79,7 @@ class DetectionTask(pl.LightningModule):
             # visualize_with_boxes(images, true_boxes, true_labels)
             self.visualize_train = False
         output = self.forward(images, true_boxes, true_labels)
-        self.log('loss', output['loss'], logger=False, prog_bar=True)
         return output
-
-    def log_metrics(self, metrics_dict, prefix=''):
-        for name, item in metrics_dict.items():
-            name = f'{prefix}_{name}'
-            self.log(name, item, logger=False, prog_bar=True)
-            self.logger.log_metrics({name: item}, step=self.current_epoch)
 
     def training_epoch_end(self, outputs):
         loss = torch.stack([x['loss'] for x in outputs]).mean()
@@ -69,6 +95,7 @@ class DetectionTask(pl.LightningModule):
             # visualize_with_boxes(images, true_boxes, true_labels)
             self.visualize_val = False
         output = self.forward(images, true_boxes, true_labels)
+        self.log_loss(output, prefix='val')
         return {f'val_{k}': v for k, v in output.items()}
 
     def validation_epoch_end(self, outputs):
