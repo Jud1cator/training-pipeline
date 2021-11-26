@@ -2,11 +2,11 @@ from typing import Tuple
 
 from torch import nn
 
-from models import AbstractModel
-from utils.blocks import ConvBlock
+from models import AbstractModelWrapper
+from models.blocks import ConvBlock
 
 
-class SimpleNet(AbstractModel):
+class SimpleNet(AbstractModelWrapper):
     def __init__(self, input_resolution: Tuple[int, int], num_classes: int):
         super().__init__()
         input_resolution = tuple(input_resolution)

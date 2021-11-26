@@ -3,7 +3,7 @@ from typing import Optional, List, Dict
 import torchvision
 from torch import Tensor
 
-from models import AbstractModel
+from models import AbstractModelWrapper
 
 
 def coco_image_preprocessor(images: List[Tensor]):
@@ -17,7 +17,7 @@ def coco_targets_preprocessor(targets: List[Dict[str, Tensor]]):
     return targets
 
 
-class SSDLite(AbstractModel):
+class SSDLite(AbstractModelWrapper):
     def __init__(
             self,
             pretrained: bool = False,
@@ -57,7 +57,7 @@ class SSDLite(AbstractModel):
         return self.model
 
 
-class SSD300(AbstractModel):
+class SSD300(AbstractModelWrapper):
     def __init__(
             self,
             pretrained: bool = False,

@@ -4,7 +4,7 @@ from torch import Tensor
 from torch.nn import Module
 
 
-class AbstractModel(Module):
+class AbstractModelWrapper(Module):
     def forward(self, *args, **kwargs):
         self.get_model().forward(*args, **kwargs)
 
