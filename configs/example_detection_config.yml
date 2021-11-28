@@ -5,21 +5,26 @@ run_params:
 datamodule:
   name: DetectionDataModule
   params:
-    images_dir: "/home/judicator/d/ev/dvc/sbc_core/Datasets/ObjectDetection_c1_c3_c6_person/ev_datasets_coco/images"
-    annotation_files: "/home/judicator/d/ev/dvc/sbc_core/Datasets/ObjectDetection_c1_c3_c6_person/ev_datasets_coco/annotations/ev_2021_03.json"
-    image_size: [384, 384]
-    batch_size: 4
-    val_split: 0.005
-    test_split: 0.99
+    images_dir: "/home/judicator/ev/dvc/sbc_core/Datasets/ObjectDetection_c1_c3_c6_person/ev_datasets_coco/images"
+    annotation_files: "/home/judicator/ev/dvc/sbc_core/Datasets/ObjectDetection_c1_c3_c6_person/ev_datasets_coco/annotations/ev_2021_03.json"
+    image_size: [320, 320]
+    batch_size: 16
+    val_split: 0.1
+    test_split: 0.0
 
 task:
   name: DetectionTask
   params:
     model:
-      name: RossMobileDetV2
+      name: MobileDetCPU
       params:
         num_classes: 1
-        pretrained: True
+        anchor_params:
+          image_size: [320, 320]
+          min_level: 4
+          max_level: 9
+          num_scales: 1
+          anchor_scale: 1.0
     optimizer:
       name: Adam
       params:
@@ -30,11 +35,11 @@ callbacks:
   - name: ModelCheckpoint
     params:
       monitor: val_loss
-      mode: max
+      mode: min
       verbose: True
 
 trainer_params:
-  max_epochs: 1
+  max_epochs: 100
   gpus: 1
 
 export_params:

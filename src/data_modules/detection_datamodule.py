@@ -63,7 +63,17 @@ class CocoDetectionDataset(Dataset):
         if self.transform:
             image, bboxes, labels = self.apply_transforms(self.transform, image, bboxes, labels)
 
-        return image, bboxes, labels
+        _, new_h, new_w = image.shape
+
+        target = {
+            "bboxes": torch.as_tensor(bboxes, dtype=torch.float32),
+            "labels": torch.as_tensor(labels),
+            "image_id": torch.tensor([index]),
+            "img_size": (new_h, new_w),
+            "img_scale": torch.tensor([1.0]),
+        }
+
+        return image, target, index
 
 
 class CocoDetectionSubset(Dataset):
@@ -90,19 +100,31 @@ class CocoDetectionSubset(Dataset):
         return len(self.subset)
 
     def __getitem__(self, index):
-        image, bboxes, labels = self.subset[index]
+        image, target, _ = self.subset[index]
         image = np.array(image, dtype=np.uint8)
+        bboxes = np.array(target['bboxes'])
+        labels = np.array(target['labels'])
 
         if self.transform:
             image, bboxes, labels = CocoDetectionDataset.apply_transforms(
                 self.transform, image, bboxes, labels
             )
 
+        _, new_h, new_w = image.shape
+
         for i in range(len(bboxes)):
             x, y, h, w = bboxes[i]
             bboxes[i] = torch.FloatTensor([y, x, y + h, x + w])
 
-        return image, bboxes, labels
+        target = {
+            "bboxes": torch.as_tensor(bboxes, dtype=torch.float32),
+            "labels": torch.as_tensor(labels),
+            "image_id": torch.tensor([index]),
+            "img_size": (new_h, new_w),
+            "img_scale": torch.tensor([1.0]),
+        }
+
+        return image, target, index
 
 
 class DetectionDataModule(LightningDataModule):
@@ -285,13 +307,33 @@ class DetectionDataModule(LightningDataModule):
         )
         return transform
 
+    # @staticmethod
+    # def collate_fn(batch):
+    #     images, boxes, labels = [], [], []
+    #     for item in batch:
+    #         images.append(item[0])
+    #         boxes.append(item[1])
+    #         labels.append(item[2])
+    #     images = torch.stack(images)
+    #
+    #     return images, boxes, labels
+
     @staticmethod
     def collate_fn(batch):
-        images, boxes, labels = [], [], []
-        for item in batch:
-            images.append(item[0])
-            boxes.append(item[1])
-            labels.append(item[2])
+        images, targets, image_ids = tuple(zip(*batch))
         images = torch.stack(images)
+        images = images.float()
 
-        return images, boxes, labels
+        boxes = [target["bboxes"].float() for target in targets]
+        labels = [target["labels"].float() for target in targets]
+        img_size = torch.tensor([target["img_size"] for target in targets]).float()
+        img_scale = torch.tensor([target["img_scale"] for target in targets]).float()
+
+        annotations = {
+            "bbox": boxes,
+            "cls": labels,
+            "img_size": img_size,
+            "img_scale": img_scale,
+        }
+
+        return images, annotations, targets, image_ids
