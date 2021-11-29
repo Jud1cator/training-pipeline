@@ -8,7 +8,6 @@ import torch
 import numpy as np
 import albumentations as A
 
-from albumentations.pytorch import ToTensorV2
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import random_split, Dataset, DataLoader, Subset
 from torchvision.datasets import CocoDetection
@@ -114,7 +113,10 @@ class CocoDetectionSubset(Dataset):
 
         for i in range(len(bboxes)):
             x, y, h, w = bboxes[i]
-            bboxes[i] = torch.FloatTensor([y, x, y + h, x + w])
+            bboxes[i][0] = y
+            bboxes[i][1] = x
+            bboxes[i][2] = y + h
+            bboxes[i][3] = x + w
 
         target = {
             "bboxes": torch.as_tensor(bboxes, dtype=torch.float32),
@@ -129,20 +131,25 @@ class CocoDetectionSubset(Dataset):
 
 class DetectionDataModule(LightningDataModule):
 
+    BBOX_FORMATS = ['coco', 'pascal_voc', 'yolo']
+
     def __init__(
-            self,
-            images_dir: str,
-            annotation_files: Union[List[str], str],
-            image_size: List[int],
-            batch_size: int,
-            val_split: float = 0.0,
-            test_split: float = 0.0,
-            num_workers: int = os.cpu_count(),
-            shuffle: bool = True,
-            pin_memory: bool = True,
-            drop_last: bool = False,
-            *args,
-            **kwargs
+        self,
+        images_dir: str,
+        annotation_files: Union[List[str], str],
+        image_size: list,
+        bbox_format: str,
+        train_transforms: list,
+        val_transforms: list,
+        batch_size: int,
+        val_split: float = 0.0,
+        test_split: float = 0.0,
+        shuffle: bool = True,
+        pin_memory: bool = True,
+        drop_last: bool = False,
+        num_workers: int = os.cpu_count(),
+        *args,
+        **kwargs
     ) -> None:
         """
         Args:
@@ -154,14 +161,19 @@ class DetectionDataModule(LightningDataModule):
             :param test_split: fraction of test data
             :param num_workers: how many workers to use for loading data
             :param shuffle: if true shuffles the data every epoch
-            :param pin_memory: if true, the data loader will copy Tensors
+            :param pin_memory: if true, the data loader will copy Tensors 
                 into CUDA pinned memory before returning them
             :param drop_last: If true drops the last incomplete batch
         """
         super(DetectionDataModule, self).__init__(*args, **kwargs)
         self.images_dir = Path(images_dir)
         self.annotations = annotation_files
-        self.image_size = tuple(image_size)
+        self.image_size = image_size
+        if bbox_format not in self.BBOX_FORMATS:
+            raise ValueError(f'Unknown format of bounding boxes: {bbox_format}')
+        self.bbox_format = bbox_format
+        self.train_tf_list = train_transforms
+        self.val_tf_list = val_transforms
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.shuffle = shuffle
@@ -173,12 +185,12 @@ class DetectionDataModule(LightningDataModule):
             and {test_split} for test"
 
         self.parse_annotations(val_split, test_split)
-
+    
     def parse_annotations(self, val_ratio: float, test_ratio: float):
-        """Parse provided annotations.
-            If there are several annotations files tries to parse them
-            by the type (train, val, test).
-            Otherwise, parse only one file and split it by provided
+        """Parse provided annotations. 
+            If there are several annotations files tries to parse them 
+            by the type (train, val, test). 
+            Otherwise, parse only one file and split it by provided 
             ratios for sets.
         """
         if type(self.annotations) is list:
@@ -201,7 +213,7 @@ class DetectionDataModule(LightningDataModule):
                 self.test_set = CocoDetectionDataset(
                     self.images_dir, ann_file=parsed['test_fn'], transform=self.val_transforms()
                 )
-
+            
             if info['unknown']:
                 warnings.warn(
                     'Unknown annotations are found. '
@@ -278,16 +290,10 @@ class DetectionDataModule(LightningDataModule):
             collate_fn=self.collate_fn
         )
         return loader
-
+    
     def train_transforms(self):
         transform = A.Compose(
-            [
-                A.CenterCrop(height=480, width=480),
-                A.Resize(height=self.image_size[0], width=self.image_size[1]),
-                A.HorizontalFlip(p=0.5),
-                A.RandomBrightnessContrast(p=0.5),
-                ToTensorV2()
-            ],
+            self.train_tf_list,
             bbox_params=A.BboxParams(
                 format='coco', min_area=0, min_visibility=0, label_fields=['labels']
             )
@@ -296,27 +302,12 @@ class DetectionDataModule(LightningDataModule):
 
     def val_transforms(self):
         transform = A.Compose(
-            [
-                A.CenterCrop(height=480, width=480),
-                A.Resize(height=self.image_size[0], width=self.image_size[1]),
-                ToTensorV2()
-            ],
+            self.val_tf_list,
             bbox_params=A.BboxParams(
                 format='coco', min_area=0, min_visibility=0, label_fields=['labels']
             )
         )
         return transform
-
-    # @staticmethod
-    # def collate_fn(batch):
-    #     images, boxes, labels = [], [], []
-    #     for item in batch:
-    #         images.append(item[0])
-    #         boxes.append(item[1])
-    #         labels.append(item[2])
-    #     images = torch.stack(images)
-    #
-    #     return images, boxes, labels
 
     @staticmethod
     def collate_fn(batch):

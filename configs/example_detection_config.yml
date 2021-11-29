@@ -5,26 +5,48 @@ run_params:
 datamodule:
   name: DetectionDataModule
   params:
-    images_dir: "/home/judicator/ev/dvc/sbc_core/Datasets/ObjectDetection_c1_c3_c6_person/ev_datasets_coco/images"
-    annotation_files: "/home/judicator/ev/dvc/sbc_core/Datasets/ObjectDetection_c1_c3_c6_person/ev_datasets_coco/annotations/ev_2021_03.json"
-    image_size: [320, 320]
+    images_dir: "/home/judicator/data/coco_images"
+    annotation_files: "/home/judicator/data/instances_minitrain2017.json"
+    image_size: [384, 384]
+    bbox_format: coco
     batch_size: 16
-    val_split: 0.1
-    test_split: 0.0
+    val_split: 0.005
+    test_split: 0.99
+
+train_transforms:
+  - name: SmallestMaxSize
+    params:
+      max_size: 384
+  - name: CenterCrop
+    params:
+      height: 384
+      width: 384
+  - name: HorizontalFlip
+    params:
+      p: 0.5
+  - name: RandomBrightnessContrast
+    params:
+      p: 0.5
+  - name: ToTensor
+
+val_transforms:
+  - name: SmallestMaxSize
+    params:
+      max_size: 384
+  - name: CenterCrop
+    params:
+      height: 384
+      width: 384
+  - name: ToTensor
 
 task:
   name: DetectionTask
   params:
     model:
-      name: MobileDetCPU
+      name: MobileDetV2Wrapper
       params:
-        num_classes: 1
-        anchor_params:
-          image_size: [320, 320]
-          min_level: 4
-          max_level: 9
-          num_scales: 1
-          anchor_scale: 1.0
+        num_classes: 91
+        pretrained: True
     optimizer:
       name: Adam
       params:

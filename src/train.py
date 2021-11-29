@@ -28,6 +28,8 @@ def prepare_run(name, seed):
 def main(
         run_params: dict,
         datamodule: dict,
+        train_transforms: list,
+        val_transforms: list,
         task: dict,
         callbacks: list,
         trainer_params: dict,
@@ -38,9 +40,23 @@ def main(
     Registry.init_modules()
 
     datamodule = Config(**datamodule)
+
+    train_tf_list = []
+    for tf in train_transforms:
+        transform = Config(**tf)
+        train_tf_list.append(Registry.TRANSFORMS[transform.name](**transform.params))
+    val_tf_list = []
+    for tf in val_transforms:
+        transform = Config(**tf)
+        val_tf_list.append(Registry.TRANSFORMS[transform.name](**transform.params))
+
     task = Config(**task)
 
-    dm = Registry.DATA_MODULES[datamodule.name](**datamodule.params)
+    dm = Registry.DATA_MODULES[datamodule.name](
+        **datamodule.params,
+        train_transforms=train_tf_list,
+        val_transforms=val_tf_list
+    )
 
     task = Registry.TASKS[task.name](datamodule=dm, res_dir=res_dir, **task.params)
 

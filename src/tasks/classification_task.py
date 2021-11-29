@@ -122,7 +122,7 @@ class ClassificationTask(pl.LightningModule):
     def configure_optimizers(self):
         config = {}
         opt = Registry.OPTIMIZERS[self.optimizer_config.name](
-            self.net.parameters(), **self.optimizer_config.params
+            self.model.parameters(), **self.optimizer_config.params
         )
         config['optimizer'] = opt
         if self.scheduler_dict:

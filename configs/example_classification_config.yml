@@ -1,0 +1,77 @@
+run_params:
+  name: example_classification
+  seed: 1
+
+datamodule:
+  name: ClassificationDataModule
+  params:
+    data_dir: "/home/judicator/data/cifar10/train"
+#    test_data_dir: "/home/judicator/data/cifar10/test"
+    input_shape: [224, 224]
+    val_split: 0.33
+    test_split: 0.33
+    batch_size: 16
+    use_weighted_sampler: False
+    pin_memory: True
+
+train_transforms:
+  - name: SmallestMaxSize
+    params:
+      max_size: 224
+  - name: RandomCrop
+    params:
+      height: 224
+      width: 224
+  - name: HorizontalFlip
+    params:
+      p: 0.5
+  - name: RandomBrightnessContrast
+    params:
+      p: 0.5
+  - name: ToTensor
+
+val_transforms:
+  - name: SmallestMaxSize
+    params:
+      max_size: 224
+  - name: CenterCrop
+    params:
+      height: 224
+      width: 224
+  - name: ToTensor
+
+
+task:
+  name: ClassificationTask
+  params:
+    debug: False
+    network:
+      name: EfficientNetLite0
+      params:
+        pretrained: True
+    loss:
+      name: CrossEntropyLoss
+      params:
+        is_weighted: False
+    metrics:
+      - name: Precision
+      - name: Recall
+    optimizer:
+      name: Adam
+      params:
+        lr: 0.001
+
+callbacks:
+  - name: ModelCheckpoint
+    params:
+      monitor: val_precision
+      mode: 'max'
+      verbose: True
+
+trainer_params:
+  max_epochs: 1
+  gpus: 1
+
+export_params:
+  output_name: example_classification
+  batch_size: 32

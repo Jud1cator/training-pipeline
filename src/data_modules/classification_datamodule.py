@@ -1,11 +1,11 @@
 import os
 from typing import Any, Callable, Optional, List
 
+import albumentations as A
 import torch
 import numpy as np
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Subset, Dataset
-from torchvision import transforms as tf
 from torchvision.datasets import ImageFolder
 from sklearn.model_selection import train_test_split
 from pydantic import validate_arguments
@@ -40,9 +40,11 @@ class ClassificationDataModule(LightningDataModule):
     def __init__(
         self,
         data_dir: str,
-        classes: List[str],
+        train_transforms: list,
+        val_transforms: list,
         batch_size: int,
         val_split: float,
+        classes: List[str] = None,
         input_shape: List[int] = None,
         test_split: float = 0.0,
         num_workers: int = os.cpu_count(),
@@ -70,8 +72,9 @@ class ClassificationDataModule(LightningDataModule):
 
         super().__init__()
         self.data_dir = data_dir
+        self.train_tf_list = train_transforms
+        self.val_tf_list = val_transforms
         self.input_shape = tuple(input_shape) if input_shape else input_shape
-        self.classes = tuple(classes)
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.shuffle = shuffle
@@ -91,6 +94,8 @@ class ClassificationDataModule(LightningDataModule):
             self.data_dir if test_data_dir is None else test_data_dir,
             transform=self.val_transforms()
         )
+
+        self.classes = classes if classes else train_dataset.classes
 
         class_distribution = np.unique(
             train_dataset.targets, return_counts=True)[1]
@@ -218,16 +223,11 @@ class ClassificationDataModule(LightningDataModule):
         return loader
 
     def train_transforms(self) -> Callable:
-        transform = tf.Compose([
-            ResizePad(self.input_shape),
-            tf.RandomHorizontalFlip(p=0.5),
-            tf.ToTensor(),
-        ])
-        return transform
+        return lambda x: A.Compose(
+                self.train_tf_list
+            )(image=(np.array(x)/255.0).astype(np.float32))['image'].float()
 
     def val_transforms(self) -> Callable:
-        transform = tf.Compose([
-            ResizePad(self.input_shape),
-            tf.ToTensor(),
-        ])
-        return transform
+        return lambda x: A.Compose(
+                self.val_tf_list
+            )(image=(np.array(x)/255.0).astype(np.float32))['image'].float()
