@@ -21,7 +21,9 @@ def visualize_with_boxes(img_batch: torch.Tensor, boxes: torch.Tensor):
     imgs = []
     for i in range(img_batch.size()[0]):
         img = (img_batch[i] * 255).byte()
-        img = draw_bounding_boxes(img.cpu(), boxes[i][:, [1, 0, 3, 2]].cpu())
+        colors = ['red'] * boxes[i].size()[0]
+        img = draw_bounding_boxes(
+            img.cpu(), boxes[i][:, [1, 0, 3, 2]].cpu(), colors=colors, width=2)
         imgs.append(img)
     n_rows = int(np.sqrt(len(img_batch))) + 1
     grid = make_grid(imgs, nrow=n_rows).numpy()

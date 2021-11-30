@@ -12,7 +12,7 @@ def create_config_parser():
     )
     params = parser.parse_args()
 
-    config_path = Path("./configs") / params.config
+    config_path = Path(params.config)
     with open(config_path, 'r') as fs:
         config = yaml.safe_load(fs)
     return config_path, config

@@ -9,8 +9,9 @@ datamodule:
     annotation_files: "/home/judicator/data/instances_minitrain2017.json"
     image_size: [384, 384]
     bbox_format: coco
-    batch_size: 16
-    val_split: 0.04
+    batch_size: 4
+    val_split: 0.0005
+    test_split: 0.999
 
 train_transforms:
   - name: SmallestMaxSize
