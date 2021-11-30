@@ -1,4 +1,4 @@
-# Training Pipeline for Computer Vision Neural Networks
+# Training Pipeline for Computer Vision Neural Networks on Pytorch Lightning
 
 Training pipeline is a tool that helps automate the experiments with training neural
 networks for computer vision tasks, such us Image Classification and Object Detection.
@@ -10,6 +10,13 @@ The code of training procedures is not universal - there are always some tweaks 
 you may want to try while training your models. You can easily extend the functionality
 thanks to the modular structure of the source code, which enables to add new models, losses, metrics,
 data parsers and even the whole tasks (Semantic Segmentation and Instance Segmentation are coming).
+
+This repository is based on Pytorch Lightning: 
+https://github.com/PyTorchLightning/pytorch-lightning
+
+A lot of useful features and inspiration was taken from Ross Wightman's repositories:
+https://github.com/rwightman/gen-efficientnet-pytorch
+https://github.com/rwightman/efficientdet-pytorch
 
 ## Repository structure:
 
@@ -61,7 +68,6 @@ Here is how you can do it using `venv` module in Python 3:
 __WARNING__: you may need to install different versions of `torch` and `torchvision`
 packages depending on you CUDA version. For that, refer to the specific version
 which are compatible with your CUDA version here: https://download.pytorch.org/whl/torch_stable.html
-
 You need to __MANUALLY__ install needed version of `torch` and `torchvision`, for example
 for CUDA 11.1:
 
@@ -150,3 +156,18 @@ Moreover, you can train your model on multiple GPUs by simply setting the traine
 parameter to the number of GPUs (Thanks to wonderful Pytorch Lightning). Finally, the trained model
 can be automatically converted to ONNX format to facilitate its future deployment. ONNX can be
 easily converted to such frameworks as TensorRT or OpenVINO for fast inference on GPU and CPU.
+
+
+## References
+<a id="1">[1]</a> 
+Falcon, W., & The PyTorch Lightning team. (2019). PyTorch Lightning (Version 1.4) [Computer software]. https://doi.org/10.5281/zenodo.3828935
+
+<a id="2">[2]</a> 
+(Generic) EfficientNets for PyTorch by Ross Wightman: https://github.com/rwightman/gen-efficientnet-pytorch
+
+<a id="3">[3]</a>
+EfficientDet (PyTorch) by Ross Wightman: https://github.com/rwightman/efficientdet-pytorch
+
+<a id="4">[4]</a>
+A Notebook with sample integration of EfficientDet (PyTorch) into Pytorch Lightning:
+https://gist.github.com/Chris-hughes10/73628b1d8d6fc7d359b3dcbbbb8869d7
