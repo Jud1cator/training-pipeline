@@ -52,13 +52,11 @@ don't want to mess with packages versions which may be incompatibe with ones you
 already have in you system.
 Here is how you can do it using `venv` module in Python 3:
 
-
-    python3 -m venv /path/to/new/virtual/environment
+    `python3 -m venv /path/to/new/virtual/environment`
 
 - Install requirements:
 
-
-    pip install -r requirements.txt
+    `pip install -r requirements.txt`
 
 __WARNING__: you may need to install different versions of `torch` and `torchvision`
 packages depending on you CUDA version. For that, refer to the specific version
