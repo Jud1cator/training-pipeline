@@ -16,6 +16,7 @@ from utils.dataset import get_annotations_info
 
 
 class CocoDetectionDataset(Dataset):
+    """ Detection dataset for COCO format """
     def __init__(self, img_dir, ann_file, transform=None):
         super().__init__()
         self.coco_dataset = CocoDetection(
@@ -126,7 +127,7 @@ class CocoDetectionSubset(Dataset):
 
 
 class DetectionDataModule(LightningDataModule):
-
+    """ Main class for manipulation with object detection dataset """
     BBOX_FORMATS = ['coco', 'pascal_voc', 'yolo']
 
     def __init__(

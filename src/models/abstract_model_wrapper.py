@@ -5,6 +5,7 @@ from torch.nn import Module
 
 
 class AbstractModelWrapper(Module):
+    """ Wrapper class for models used in training procedure """
     def forward(self, *args, **kwargs):
         self.get_model().forward(*args, **kwargs)
 

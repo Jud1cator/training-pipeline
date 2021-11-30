@@ -22,18 +22,17 @@ https://github.com/rwightman/efficientdet-pytorch
 
 This repository is organized in a following folder structure:
 
-- `configs` - a folder for storing training procedure configurations. Contains example configs which
+- `configs` - a folder for storing training procedure configurations. Contains example config
 with possible fields and values.
 
-- `runs` - information about runs, tensorboard logs, model checkpoints and evaluation results will 
-be stored here after a training procedure is completed.
+- `runs` - information about runs, tensorboard logs, model checkpoints and evaluation results of completed jobs.
 
 - `src` - all source code files
 
 The source code is organized in a following folder structure:
 
 - `data_modules` - module which contains subclasses of the `LightningDataModule` class. Used to
-perform all data related operations.
+perform all data related operations. Currently supports data manipulation for classification and detection tasks.
 
 - `losses` - TBD module for custom loss functions.
 
@@ -44,7 +43,7 @@ as containers and aggregators of different metrics that may be collected during 
 Any Pytorch neural network which is subclass of `Module` or `AbstractModelWrapper` can be added here
 to be used in a training procedure.
 
-- `tasks` - module which contains subclasses of `LightningModule` which wrap up any model from `models`
+- `tasks` - module which contains subclasses of `LightningModule` which wraps up any model from `models`
 module for corresponded task, defining its training procedure.
 
 - `utils` - all helpful unclassified code goes here
