@@ -2,6 +2,8 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from torch.nn import CrossEntropyLoss
 from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
 import pkgutil
 import inspect
@@ -21,6 +23,15 @@ class Registry:
     METRICS = {}
     MODELS = {}
     TASKS = {}
+    TRANSFORMS = {
+        'Resize': A.Resize,
+        'SmallestMaxSize': A.SmallestMaxSize,
+        'CenterCrop': A.CenterCrop,
+        'RandomCrop': A.RandomCrop,
+        'HorizontalFlip': A.HorizontalFlip,
+        'RandomBrightnessContrast': A.RandomBrightnessContrast,
+        'ToTensor': ToTensorV2
+    }
     OPTIMIZERS = {
         'SGD': SGD,
         'Adam': Adam

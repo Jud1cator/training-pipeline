@@ -16,7 +16,6 @@ def main(
         1, 3, input_shape[0], input_shape[1], requires_grad=True)
     model_checkpoint = torch.load(model_path)
 
-    print(Registry.MODELS)
     model = Registry.MODELS[model_class](
         input_shape=input_shape, **model_params
     )

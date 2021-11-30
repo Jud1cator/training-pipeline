@@ -1,0 +1,69 @@
+run_params:
+  name: example_detection
+  seed: 1
+
+datamodule:
+  name: DetectionDataModule
+  params:
+    images_dir: "/home/judicator/data/coco_images"
+    annotation_files: "/home/judicator/data/instances_minitrain2017.json"
+    image_size: [384, 384]
+    bbox_format: coco
+    batch_size: 4
+    val_split: 0.0005
+    test_split: 0.999
+
+train_transforms:
+  - name: SmallestMaxSize
+    params:
+      max_size: 384
+  - name: CenterCrop
+    params:
+      height: 384
+      width: 384
+  - name: HorizontalFlip
+    params:
+      p: 0.5
+  - name: RandomBrightnessContrast
+    params:
+      p: 0.5
+  - name: ToTensor
+
+val_transforms:
+  - name: SmallestMaxSize
+    params:
+      max_size: 384
+  - name: CenterCrop
+    params:
+      height: 384
+      width: 384
+  - name: ToTensor
+
+task:
+  name: DetectionTask
+  params:
+    model:
+      name: MobileDetV2Wrapper
+      params:
+        num_classes: 91
+        pretrained: True
+    optimizer:
+      name: Adam
+      params:
+        lr: 0.001
+    debug: True
+
+callbacks:
+  - name: ModelCheckpoint
+    params:
+      monitor: val_loss
+      mode: min
+      verbose: True
+
+trainer_params:
+  max_epochs: 100
+  gpus: 1
+
+export_params:
+  output_name: example_detection
+  to_onnx: False

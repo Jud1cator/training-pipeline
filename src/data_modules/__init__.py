@@ -1,1 +1,2 @@
 from .classification_datamodule import ClassificationDataModule
+from .detection_datamodule import DetectionDataModule

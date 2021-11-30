@@ -20,28 +20,43 @@ def prepare_run(name, seed):
     checkpoints_dir.mkdir(exist_ok=True, parents=True)
     test_res_dir = run_dir / 'results'
     test_res_dir.mkdir(exist_ok=True, parents=True)
-    return run_dir, checkpoints_dir, test_res_dir
+    weights_dir = run_dir / 'trained_models'
+    weights_dir.mkdir(exist_ok=True, parents=True)
+    return run_dir, checkpoints_dir, test_res_dir, weights_dir
 
 
 def main(
         run_params: dict,
         datamodule: dict,
+        train_transforms: list,
+        val_transforms: list,
         task: dict,
         callbacks: list,
         trainer_params: dict,
         export_params: dict
 ):
-    run_dir, ckpt_dir, res_dir = prepare_run(**run_params)
+    run_dir, ckpt_dir, res_dir, weights_dir = prepare_run(**run_params)
 
     Registry.init_modules()
 
     datamodule = Config(**datamodule)
+
+    train_tf_list = []
+    for tf in train_transforms:
+        transform = Config(**tf)
+        train_tf_list.append(Registry.TRANSFORMS[transform.name](**transform.params))
+    val_tf_list = []
+    for tf in val_transforms:
+        transform = Config(**tf)
+        val_tf_list.append(Registry.TRANSFORMS[transform.name](**transform.params))
+
     task = Config(**task)
 
-    export_path = Path("./trained_models")
-    export_path.mkdir(exist_ok=True)
-
-    dm = Registry.DATA_MODULES[datamodule.name](**datamodule.params)
+    dm = Registry.DATA_MODULES[datamodule.name](
+        **datamodule.params,
+        train_transforms=train_tf_list,
+        val_transforms=val_tf_list
+    )
 
     task = Registry.TASKS[task.name](datamodule=dm, res_dir=res_dir, **task.params)
 
@@ -63,23 +78,26 @@ def main(
     trainer.fit(task, datamodule=dm)
 
     weights_fname = '.'.join([export_params['output_name'], 'json'])
-    torch.save(task.net.state_dict(), export_path / weights_fname)
+    torch.save(task.model.state_dict(), weights_dir / weights_fname)
 
     task.eval()
-    trainer.test(task, datamodule=dm)
+    if dm.test_set:
+        trainer.test(task, datamodule=dm)
 
-    input_shape = tuple(datamodule.params['input_shape'])
+    if export_params['to_onnx']:
+        input_shape = tuple(datamodule.params['input_shape'])
+        batch_size = export_params.get('batch_size', 1)
 
-    dummy_input = torch.randn(export_params['batch_size'], 3, input_shape[0], input_shape[1])
+        dummy_input = torch.randn(batch_size, 3, input_shape[0], input_shape[1])
 
-    onnx_fname = export_params['output_name'] + ".onnx"
-    torch.onnx.export(
-        task.net,
-        dummy_input,
-        export_path / onnx_fname,
-        input_names=['input'],
-        output_names=['output'],
-    )
+        onnx_fname = export_params['output_name'] + ".onnx"
+        torch.onnx.export(
+            task.model,
+            dummy_input,
+            weights_dir / onnx_fname,
+            input_names=['input'],
+            output_names=['output'],
+        )
 
 
 if __name__ == '__main__':

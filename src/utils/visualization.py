@@ -1,15 +1,32 @@
-from typing import Union, Optional
+from typing import Union, Optional, List
 
+import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn
 
-from torchvision.utils import make_grid
+from matplotlib import patches
+
+from torchvision.utils import make_grid, draw_bounding_boxes
 
 
-def visualize_batch(img_batch):
-    n_rows = int(np.sqrt(img_batch.size()[0])) + 1
+def visualize_batch(img_batch: Union[torch.Tensor, List[torch.Tensor]]):
+    n_rows = int(np.sqrt(len(img_batch))) + 1
     grid = make_grid(img_batch, nrow=n_rows).cpu().numpy()
+    plt.imshow(np.transpose(grid, (1, 2, 0)), interpolation='bilinear')
+    plt.show()
+
+
+def visualize_with_boxes(img_batch: torch.Tensor, boxes: torch.Tensor):
+    imgs = []
+    for i in range(img_batch.size()[0]):
+        img = (img_batch[i] * 255).byte()
+        colors = ['red'] * boxes[i].size()[0]
+        img = draw_bounding_boxes(
+            img.cpu(), boxes[i][:, [1, 0, 3, 2]].cpu(), colors=colors, width=2)
+        imgs.append(img)
+    n_rows = int(np.sqrt(len(img_batch))) + 1
+    grid = make_grid(imgs, nrow=n_rows).numpy()
     plt.imshow(np.transpose(grid, (1, 2, 0)), interpolation='bilinear')
     plt.show()
 
@@ -123,3 +140,73 @@ def plot_confusion_matrix(
         plt.savefig(save_path)
     if show:
         plt.show()
+
+
+def get_rectangle_edges_from_pascal_bbox(bbox):
+    xmin_top_left, ymin_top_left, xmax_bottom_right, ymax_bottom_right = bbox
+
+    top_left = (xmin_top_left, ymin_top_left)
+    width = xmax_bottom_right - xmin_top_left
+    height = ymin_top_left - ymax_bottom_right
+
+    return top_left, width, height
+
+
+def get_rectangle_edges_from_coco_bbox(bbox):
+    xmin_top_left, ymin_top_left, width, height = bbox
+
+    top_left = (xmin_top_left, ymin_top_left)
+
+    return top_left, width, height
+
+
+def draw_bboxes(plot_ax, bboxes, get_rectangle_corners_fn):
+    for bbox in bboxes:
+        top_left, width, height = get_rectangle_corners_fn(bbox)
+
+        rect_1 = patches.Rectangle(
+            top_left,
+            width,
+            height,
+            linewidth=4,
+            edgecolor="black",
+            fill=False,
+        )
+        rect_2 = patches.Rectangle(
+            top_left,
+            width,
+            height,
+            linewidth=2,
+            edgecolor="white",
+            fill=False,
+        )
+
+        # Add the patch to the Axes
+        plot_ax.add_patch(rect_1)
+        plot_ax.add_patch(rect_2)
+
+
+def draw_pascal_voc_bboxes(plot_ax, bboxes):
+    draw_bboxes(plot_ax, bboxes, get_rectangle_edges_from_pascal_bbox)
+
+
+def draw_coco_bboxes(plot_ax, bboxes):
+    draw_bboxes(plot_ax, bboxes, get_rectangle_edges_from_coco_bbox)
+
+
+def show_image(image, draw_bboxes_fn, bboxes=None, figsize=(10, 10)):
+    fig, ax = plt.subplots(1, figsize=figsize)
+    ax.imshow(image)
+
+    if bboxes is not None:
+        draw_bboxes_fn(ax, bboxes)
+
+    plt.show()
+
+
+def show_image_pascal_voc(image, bboxes=None, figsize=(10, 10)):
+    show_image(image, draw_bboxes_fn=draw_pascal_voc_bboxes, bboxes=bboxes, figsize=figsize)
+
+
+def show_image_coco(image, bboxes=None, figsize=(10, 10)):
+    show_image(image, draw_bboxes_fn=draw_coco_bboxes, bboxes=bboxes, figsize=figsize)

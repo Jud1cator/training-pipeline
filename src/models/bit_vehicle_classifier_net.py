@@ -1,10 +1,10 @@
 from torch import nn
 
-from models import AbstractModel
-from utils.blocks import ConvBlock
+from models import AbstractModelWrapper
+from models.blocks import ConvBlock
 
 
-class BITVehicleClassifierNet(AbstractModel):
+class BITVehicleClassifierNet(AbstractModelWrapper):
     def __init__(self, input_resolution, num_classes):
         super().__init__()
         self.conv1 = ConvBlock(3, 32)

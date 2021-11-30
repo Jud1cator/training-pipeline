@@ -1,112 +1,173 @@
-# Training Pipeline for Computer Vision Neural Networks
+# Training Pipeline for Computer Vision Neural Networks on Pytorch Lightning
+
+Training pipeline is a tool that helps automate the experiments with training neural
+networks for computer vision tasks, such us Image Classification and Object Detection.
+It implements the standard ways of training neural networks for Image Classification 
+and Object Detection on custom datasets. The training procedure is configured via `.yml`
+files, which provides a transparent overview of all parameters.
+
+The code of training procedures is not universal - there are always some tweaks that
+you may want to try while training your models. You can easily extend the functionality
+thanks to the modular structure of the source code, which enables to add new models, losses, metrics,
+data parsers and even the whole tasks (Semantic Segmentation and Instance Segmentation are coming).
+
+This repository is based on Pytorch Lightning: 
+https://github.com/PyTorchLightning/pytorch-lightning
+
+A lot of useful features and inspiration was taken from Ross Wightman's repositories:
+https://github.com/rwightman/gen-efficientnet-pytorch
+https://github.com/rwightman/efficientdet-pytorch
 
 ## Repository structure:
 
-- `configs` - all .yml configs which are used to launch the system
+This repository is organized in a following folder structure:
 
-- `runs` - information about runs, tensorboard logs, model checkpoints and evaluation results
+- `configs` - a folder for storing training procedure configurations. Contains example configs which
+with possible fields and values.
+
+- `runs` - information about runs, tensorboard logs, model checkpoints and evaluation results will 
+be stored here after a training procedure is completed.
 
 - `src` - all source code files
 
-## Source code structure
+The source code is organized in a following folder structure:
 
-Module `src` contains all project submodules and high level scripts.
+- `data_modules` - module which contains subclasses of the `LightningDataModule` class. Used to
+perform all data related operations.
 
-Submodules:
+- `losses` - TBD module for custom loss functions.
 
-- `data_modules` - subclasses of pytorch_lightning.LigtningDataModule which manage datasets for specific task (12.07.2021: only classification_datamodule is implemented)
+- `metrics` - module which contains `AbstractMetric` class and its subclasses. These classes are meant 
+as containers and aggregators of different metrics that may be collected during training procedure.
 
-- `losses` - definitions of loss functions (12.07.2021: nothing is implemented).
-- `metrics` - definitions of evaluation metric for different tasks (12.07.2021: only confusion_matrix is implemented).
-- `models` - subclasses of torch.nn.Module with definitions neural network architectures (12.07.2021: bit_vehicle_classifier_net and simple_net are implemented).
-- `tasks` - subclasses of pytorch_lightning.LigtningModule which define the training and evaluation process for specific task (12.07.2021: only classification_task is implemented).
-- `utils` - helper scripts.
+- `models` - module which contains `AbstractModelWrapper` class (a subclass of `torch.nn.Module`).
+Any Pytorch neural network which is subclass of `Module` or `AbstractModelWrapper` can be added here
+to be used in a training procedure.
 
-Scripts:
+- `tasks` - module which contains subclasses of `LightningModule` which wrap up any model from `models`
+module for corresponded task, defining its training procedure.
 
-- `infer_onnx_classifier.py` - script for classifier inference converted to ONNX format.
-- `model_to_onnx.py` - script to convert model weights in Pytorch format (JSON) to ONNX.
-- `test.py` - script to run evaluation pipeline.
-- `train.py` - main script, runs training and evaluation pipelines.
-- `visualize_inference.py` - script to visualize inference of detection network.
+- `utils` - all helpful unclassified code goes here
 
-Note: Helper scripts were written for early versions of training pipeline and might need refactoring before use.
+All launching scripts (like `train.py`) go to the root of `src`.
+
+## How to install
+
+- Clone the repository
+- Create and activate the virtual environment. This is important, because you
+don't want to mess with packages versions which may be incompatibe with ones you
+already have in you system.
+Here is how you can do it using `venv` module in Python 3:
+
+    `python3 -m venv /path/to/new/virtual/environment`
+
+- Install requirements:
+
+    `pip install -r requirements.txt`
+
+__WARNING__: you may need to install different versions of `torch` and `torchvision`
+packages depending on you CUDA version. For that, refer to the specific version
+which are compatible with your CUDA version here: https://download.pytorch.org/whl/torch_stable.html
+You need to __MANUALLY__ install needed version of `torch` and `torchvision`, for example
+for CUDA 11.1:
+
+    pip install torch==1.9.0+cu111 torchvision==0.10.0+cu111
 
 ## How to run
 
-To run training pipeline, you need to put .yml config to `configs` folder and provide it to `src/train.py` script.
+To run training pipeline, put your `yaml` config to `configs` folder and provide it to `src/train.py` script:
 
-Example: `python3 src/train.py -c config_for_classification_task.yml`
+`python3 src/train.py -c configs/mnist_classification_with_perceptron.yml`
 
 ## Config structure
 
-To simplify the process of training neural networks, one can do it simply interacting with config once all needed code is implemented. It helps with tracking parameter values used for training and tuning them by collecting them all in one place. Below is the example of config for trainig NN for image classification:
+To simplify the process of training neural networks and searching the optimal hyperparameters you
+can tweak all parts of training procedure in a single config file once all additionally needed features 
+are implemented. It helps with tracking parameter values used for training and tuning them by 
+collecting them all in one place. Below is how a sample config for running a training of image classifier
+can look like:
 ```
 run_params:
-  name: effnet_lite0_classes=6_resolution=96
+  name: example_classification
   seed: 1
 
 datamodule:
   name: ClassificationDataModule
   params:
-    data_dir: "/home/dragon/Projects/edge_vision/dvc/sbc_core/Datasets/vehicle_classification_6/data"
-    test_data_dir: "/home/dragon/Projects/edge_vision/dvc/sbc_core/Datasets/dooh_classification_3"
-    classes:
-      - c1
-      - c2
-      - c3
-      - c4
-      - c5
-      - c6
-    input_shape: [96, 96]
-    val_split: 0.2
+    data_dir: "/path/to/train/dataset"
+    test_data_dir: "/path/to/test/dataset/if/provided"
+    input_shape: [100, 100]
+    val_split: 0.1
+    test_split: 0.1
     batch_size: 32
-    use_weighted_sampler: True
+    use_weighted_sampler: False
     pin_memory: True
-    num_workers: 4
+
+train_transforms:
+  - name: HorizontalFlip
+    params:
+      p: 0.5
+  - name: ToTensor
+
+val_transforms:
+  - name: ToTensor
+
 
 task:
   name: ClassificationTask
   params:
-    debug: True
-
+    visualize_first_batch: True
     network:
       name: EfficientNetLite0
       params:
         pretrained: True
-
     loss:
       name: CrossEntropyLoss
-      weighted: False
       params:
-        {}
-
+        is_weighted: False
+    metrics:
+      - name: Precision
+      - name: Recall
     optimizer:
       name: Adam
       params:
         lr: 0.001
 
-    scheduler:
-      name: ReduceLROnPlateau
-      params:
-        patience: 4
-        verbose: True
-
 callbacks:
-  EarlyStopping:
-    monitor: val_loss
-    mode: min
-    patience: 10
-    min_delta: 0.01
-    verbose: True
-  ModelCheckpoint:
-    {}
+  - name: ModelCheckpoint
+    params:
+      monitor: val_precision
+      mode: 'max'
+      verbose: True
 
 trainer_params:
   max_epochs: 100
   gpus: 1
 
 export_params:
-  output_name: "effnet_lite0_classes=6_resolution=96"
-  batch_size: 32
+  output_name: example_detection
+  to_onnx: False
 ```
+
+It outlines all parameters of the training procedure: data parameters, 
+transformations, model and optimizer hyperparameters, loss and metrics to collect.
+Callbacks can be set to monitor the procedure, such as checkpoint monitor or early stopping.
+Moreover, you can train your model on multiple GPUs by simply setting the trainer's `gpus`
+parameter to the number of GPUs (Thanks to wonderful Pytorch Lightning). Finally, the trained model
+can be automatically converted to ONNX format to facilitate its future deployment. ONNX can be
+easily converted to such frameworks as TensorRT or OpenVINO for fast inference on GPU and CPU.
+
+
+## References
+<a id="1">[1]</a> 
+Falcon, W., & The PyTorch Lightning team. (2019). PyTorch Lightning (Version 1.4) [Computer software]. https://doi.org/10.5281/zenodo.3828935
+
+<a id="2">[2]</a> 
+(Generic) EfficientNets for PyTorch by Ross Wightman: https://github.com/rwightman/gen-efficientnet-pytorch
+
+<a id="3">[3]</a>
+EfficientDet (PyTorch) by Ross Wightman: https://github.com/rwightman/efficientdet-pytorch
+
+<a id="4">[4]</a>
+A Notebook with sample integration of EfficientDet (PyTorch) into Pytorch Lightning:
+https://gist.github.com/Chris-hughes10/73628b1d8d6fc7d359b3dcbbbb8869d7
