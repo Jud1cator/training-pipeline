@@ -17,11 +17,15 @@ def visualize_batch(img_batch: Union[torch.Tensor, List[torch.Tensor]]):
     plt.show()
 
 
-def visualize_with_boxes(img_batch: torch.Tensor, boxes: torch.Tensor, labels: torch.Tensor):
-    img = (img_batch[0] * 255).byte()
-    print(img.size())
-    img = draw_bounding_boxes(img, boxes[0], labels[0]).cpu().numpy()
-    plt.imshow(np.transpose(img, (1, 2, 0)))
+def visualize_with_boxes(img_batch: torch.Tensor, boxes: torch.Tensor):
+    imgs = []
+    for i in range(img_batch.size()[0]):
+        img = (img_batch[i] * 255).byte()
+        img = draw_bounding_boxes(img.cpu(), boxes[i][:, [1, 0, 3, 2]].cpu())
+        imgs.append(img)
+    n_rows = int(np.sqrt(len(img_batch))) + 1
+    grid = make_grid(imgs, nrow=n_rows).numpy()
+    plt.imshow(np.transpose(grid, (1, 2, 0)), interpolation='bilinear')
     plt.show()
 
 

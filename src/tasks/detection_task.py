@@ -84,8 +84,7 @@ class DetectionTask(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         images, annotations, targets, image_ids = batch
         if self.visualize_train:
-            visualize_batch(images)
-            # visualize_with_boxes(images, true_boxes, true_labels)
+            visualize_with_boxes(images, annotations['bbox'])
             self.visualize_train = False
         output = self.forward(images, annotations)
         return output
@@ -100,8 +99,7 @@ class DetectionTask(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         images, annotations, targets, image_ids = batch
         if self.visualize_val:
-            visualize_batch(images)
-            # visualize_with_boxes(images, true_boxes, true_labels)
+            visualize_with_boxes(images, annotations['bbox'])
             self.visualize_val = False
         output = self.forward(images, annotations)
         batch_predictions = {
@@ -143,8 +141,7 @@ class DetectionTask(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         images, annotations, targets, image_ids = batch
         if self.visualize_test:
-            visualize_batch(images)
-            # visualize_with_boxes(images, true_boxes, true_labels)
+            visualize_with_boxes(images, annotations['bbox'])
             self.visualize_test = False
         output = self.forward(images, annotations)
         batch_predictions = {

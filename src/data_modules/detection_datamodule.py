@@ -110,13 +110,9 @@ class CocoDetectionSubset(Dataset):
             )
 
         _, new_h, new_w = image.shape
-
-        for i in range(len(bboxes)):
-            x, y, h, w = bboxes[i]
-            bboxes[i][0] = y
-            bboxes[i][1] = x
-            bboxes[i][2] = y + h
-            bboxes[i][3] = x + w
+        for i in range(bboxes.size()[0]):
+            x, y, w, h = bboxes[i]
+            bboxes[i] = torch.tensor([y, x, y + h, x + w])
 
         target = {
             "bboxes": torch.as_tensor(bboxes, dtype=torch.float32),

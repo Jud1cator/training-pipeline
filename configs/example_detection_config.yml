@@ -10,8 +10,7 @@ datamodule:
     image_size: [384, 384]
     bbox_format: coco
     batch_size: 16
-    val_split: 0.005
-    test_split: 0.99
+    val_split: 0.04
 
 train_transforms:
   - name: SmallestMaxSize
