@@ -26,6 +26,8 @@ class Registry:
     TRANSFORMS = {
         'Resize': A.Resize,
         'SmallestMaxSize': A.SmallestMaxSize,
+        'LongestMaxSize': A.LongestMaxSize,
+        'PadIfNeeded': A.PadIfNeeded,
         'CenterCrop': A.CenterCrop,
         'RandomCrop': A.RandomCrop,
         'HorizontalFlip': A.HorizontalFlip,

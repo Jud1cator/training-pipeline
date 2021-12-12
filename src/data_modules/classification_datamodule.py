@@ -43,9 +43,10 @@ class ClassificationDataModule(LightningDataModule):
         train_transforms: list,
         val_transforms: list,
         batch_size: int,
+        train_split: float,
         val_split: float,
         classes: List[str] = None,
-        input_shape: List[int] = None,
+        image_size: List[int] = None,
         test_split: float = 0.0,
         num_workers: int = os.cpu_count(),
         test_data_dir: str = None,
@@ -74,7 +75,7 @@ class ClassificationDataModule(LightningDataModule):
         self.data_dir = data_dir
         self.train_tf_list = train_transforms
         self.val_tf_list = val_transforms
-        self.input_shape = tuple(input_shape) if input_shape else input_shape
+        self.image_size = tuple(image_size) if image_size else image_size
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.shuffle = shuffle
@@ -104,7 +105,8 @@ class ClassificationDataModule(LightningDataModule):
 
         val_len = round(val_split * len(train_dataset))
         test_len = round(test_split * len(train_dataset))
-        train_len = len(train_dataset) - val_len - test_len
+        # train_len = len(train_dataset) - val_len - test_len
+        train_len = round(train_split * len(train_dataset))
 
         idx = list(range(len(train_dataset)))
         if test_data_dir is None:

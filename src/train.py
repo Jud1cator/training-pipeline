@@ -85,10 +85,10 @@ def main(
         trainer.test(task, datamodule=dm)
 
     if export_params['to_onnx']:
-        input_shape = tuple(datamodule.params['input_shape'])
+        image_size = tuple(datamodule.params['image_size'])
         batch_size = export_params.get('batch_size', 1)
 
-        dummy_input = torch.randn(batch_size, 3, input_shape[0], input_shape[1])
+        dummy_input = torch.randn(batch_size, 3, image_size[0], image_size[1])
 
         onnx_fname = export_params['output_name'] + ".onnx"
         torch.onnx.export(
