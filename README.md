@@ -48,7 +48,7 @@ module for corresponded task, defining its training procedure.
 
 - `utils` - all helpful unclassified code goes here
 
-All launching scripts (like `train.py`) go to the root of `src`.
+All launching scripts (like `run.py`) go to the root of `src`.
 
 ## How to install
 
@@ -64,6 +64,10 @@ Here is how you can do it using `venv` module in Python 3:
 
     `pip install -r requirements.txt`
 
+- Install `pre-commit` to automatically run `flake8` and `isort` before each commit:
+
+    `pre-commit install`
+
 __WARNING__: you may need to install different versions of `torch` and `torchvision`
 packages depending on you CUDA version. For that, refer to the specific version
 which are compatible with your CUDA version here: https://download.pytorch.org/whl/torch_stable.html
@@ -76,7 +80,7 @@ for CUDA 11.1:
 
 To run training pipeline, put your `yaml` config to `configs` folder and provide it to `src/train.py` script:
 
-`python3 src/train.py -c configs/mnist_classification_with_perceptron.yml`
+`python3 src/train.py -c cifar10_classification_with_simple_cnn.yml`
 
 ## Config structure
 
@@ -93,22 +97,35 @@ run_params:
 datamodule:
   name: ClassificationDataModule
   params:
-    data_dir: "/path/to/train/dataset"
-    test_data_dir: "/path/to/test/dataset/if/provided"
-    input_shape: [100, 100]
+    data_dir: "/path/to/train/folder"
+    test_data_dir: "/path/to/test/folder"
+    train_split: 0.9
     val_split: 0.1
-    test_split: 0.1
     batch_size: 32
     use_weighted_sampler: False
     pin_memory: True
 
 train_transforms:
+  - name: ToFloat
+    params:
+      max_value: 255
+  - name: Resize
+    params:
+      width: 32
+      height: 32
   - name: HorizontalFlip
     params:
       p: 0.5
   - name: ToTensor
 
 val_transforms:
+  - name: ToFloat
+    params:
+      max_value: 255
+  - name: Resize
+    params:
+      width: 32
+      height: 32
   - name: ToTensor
 
 
@@ -116,7 +133,7 @@ task:
   name: ClassificationTask
   params:
     visualize_first_batch: True
-    network:
+    model:
       name: EfficientNetLite0
       params:
         pretrained: True
@@ -125,8 +142,7 @@ task:
       params:
         is_weighted: False
     metrics:
-      - name: Precision
-      - name: Recall
+      - name: F1Score
     optimizer:
       name: Adam
       params:
@@ -135,7 +151,7 @@ task:
 callbacks:
   - name: ModelCheckpoint
     params:
-      monitor: val_precision
+      monitor: val_f1score
       mode: 'max'
       verbose: True
 
@@ -144,8 +160,8 @@ trainer_params:
   gpus: 1
 
 export_params:
-  output_name: example_detection
-  to_onnx: False
+  output_name: example_classification
+  to_onnx: True
 ```
 
 It outlines all parameters of the training procedure: data parameters, 
