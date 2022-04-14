@@ -4,19 +4,18 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 
-from src.data_modules.classification_datamodule import ClassificationDataModule
-from src.metrics.confusion_matrix import ConfusionMatrix
+from src.data_modules.semantic_segmentation_datamodule import SemanticSegmentationDataModule
 from src.registry import Registry
-from src.utils.config_validation import DEFAULT_CLASSIFICATION_LOSS, DEFAULT_OPTIMIZER, Config
-from src.utils.visualization import plot_confusion_matrix, visualize_batch
+from src.utils.config_validation import DEFAULT_OPTIMIZER, DEFAULT_SEGMENTATION_LOSS, Config
+from src.utils.visualization import visualize_batch
 
 
-class ClassificationTask(pl.LightningModule):
+class SemanticSegmentationTask(pl.LightningModule):
 
     def __init__(
             self,
             model: dict,
-            datamodule: ClassificationDataModule,
+            datamodule: SemanticSegmentationDataModule,
             loss: dict = None,
             metrics: list = None,
             optimizer: dict = None,
@@ -27,16 +26,14 @@ class ClassificationTask(pl.LightningModule):
     ):
         super().__init__(**kwargs)
 
-        self.classes = datamodule.classes
-        self.num_classes = len(self.classes)
+        self.value_to_class_map = datamodule.value_to_class_map
+        self.num_classes = len(self.value_to_class_map)
 
         if loss is None:
             warnings.warn('Loss is not set in the config. Creating default loss.')
-            loss = DEFAULT_CLASSIFICATION_LOSS
+            loss = DEFAULT_SEGMENTATION_LOSS
         loss = Config(**loss)
-        class_weights = datamodule.class_weights if loss.params.get('is_weighted', False) else None
-        loss.params.pop('is_weighted', None)
-        self.loss = Registry.LOSSES[loss.name](weight=class_weights, **loss.params)
+        self.loss = Registry.LOSSES[loss.name](**loss.params)
 
         if optimizer is None:
             warnings.warn('Optimizer is not set in the config. Creating default optimizer.')
@@ -49,12 +46,14 @@ class ClassificationTask(pl.LightningModule):
             num_classes=self.num_classes, **model_config.params
         ).get_model()
 
-        self.confusion_matrix = ConfusionMatrix(self.num_classes)
         self.metrics = {}
         if metrics is not None:
             for metric in metrics:
                 metric = Config(**metric)
-                self.metrics[metric.name] = Registry.METRICS[metric.name](**metric.params)
+                self.metrics[metric.name] = Registry.METRICS[metric.name](
+                    **metric.params,
+                    num_classes=self.num_classes
+                )
 
         self.visualize_train = visualize_first_batch
         self.visualize_val = visualize_first_batch
@@ -80,7 +79,8 @@ class ClassificationTask(pl.LightningModule):
         self.logger.log_metrics({'train_loss': loss}, step=self.current_epoch)
 
     def on_validation_epoch_start(self):
-        self.confusion_matrix.reset()
+        for metric_name, metric in self.metrics.items():
+            metric.reset()
 
     def validation_step(self, batch, batch_idx):
         img, target = batch
@@ -90,7 +90,8 @@ class ClassificationTask(pl.LightningModule):
         output = self(img)
         loss = self.loss(output, target)
         prediction = np.argmax(output.cpu().numpy(), axis=1)
-        self.confusion_matrix.update(prediction, target.cpu().numpy())
+        for metric_name, metric in self.metrics.items():
+            metric.update(prediction, target.cpu().numpy())
         return {'val_loss': loss}
 
     def validation_epoch_end(self, outputs):
@@ -99,39 +100,30 @@ class ClassificationTask(pl.LightningModule):
         self.logger.log_metrics({'val_loss': loss}, step=self.current_epoch)
         for metric_name, metric in self.metrics.items():
             key = '_'.join(['val', metric_name.lower()])
-            value = metric.get_value(self.confusion_matrix.get_value())
+            value = metric.get_value()
             self.log(key, value, logger=False, prog_bar=True)
             self.logger.log_metrics({key: value}, step=self.current_epoch)
 
     def on_test_epoch_start(self):
-        self.confusion_matrix.reset()
+        for metric_name, metric in self.metrics.items():
+            metric.reset()
 
     def test_step(self, batch, batch_idx, *args, **kwargs):
         img, target = batch
         if self.visualize_test:
             visualize_batch(img)
             self.visualize_test = False
-        prediction = np.argmax(self(img).cpu().numpy(), axis=1)
-        self.confusion_matrix.update(prediction, target.cpu().numpy())
+        output = self(img)
+        prediction = np.argmax(output.cpu().numpy(), axis=1)
+        for metric_name, metric in self.metrics.items():
+            metric.update(prediction, target.cpu().numpy())
 
     def test_epoch_end(self, outputs) -> None:
-        title_string = []
         for metric_name, metric in self.metrics.items():
             key = '_'.join(['test', metric_name.lower()])
-            value = metric.get_value(self.confusion_matrix.get_value())
-            title_string.append('='.join([str(key), f'{value:.2f}']))
+            value = metric.get_value()
             self.log(key, value, logger=False, prog_bar=True)
             self.logger.log_metrics({key: value}, step=self.current_epoch)
-        title_string = ', '.join(title_string)
-        save_path = self.res_dir / 'confusion_matrix.png' if self.res_dir else None
-        plot_confusion_matrix(
-            self.confusion_matrix.get_value(),
-            title=title_string,
-            categories=self.classes,
-            save_path=save_path,
-            sort=False,
-            show=True
-        )
 
     def configure_optimizers(self):
         config = {}

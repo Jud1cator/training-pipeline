@@ -1,6 +1,6 @@
 import numpy as np
 
-from metrics import AbstractMetric
+from src.metrics.abstract_metric import AbstractMetric
 
 
 class ConfusionMatrix(AbstractMetric):

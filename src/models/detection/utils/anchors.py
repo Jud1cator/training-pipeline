@@ -1,7 +1,8 @@
 """ RetinaNet / EfficientDet Anchor Gen
 
 Adapted for PyTorch from Tensorflow impl at
-    https://github.com/google/automl/blob/6f6694cec1a48cdb33d5d1551a2d5db8ad227798/efficientdet/anchors.py
+    https://github.com/google/automl/blob/6f6694cec1a48cdb33d5d1551a2d5db8ad227798/efficientdet
+    /anchors.py
 
 Hacked together by Ross Wightman, original copyright below
 """
@@ -19,34 +20,28 @@ Hacked together by Ross Wightman, original copyright below
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Anchor definition.
-
-This module is borrowed from TPU RetinaNet implementation:
-https://github.com/tensorflow/tpu/blob/master/models/official/retinanet/anchors.py
-"""
-from typing import Optional, Tuple, Sequence
+from typing import Optional, Sequence, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
-#import torchvision.ops.boxes as tvb
-from torchvision.ops.boxes import batched_nms, remove_small_boxes
-from typing import List
-
-from utils.object_detection import (
-    ArgMaxMatcher, FasterRcnnBoxCoder, BoxList, IouSimilarity, TargetAssigner,
-    batched_soft_nms
+from effdet.object_detection import (
+    ArgMaxMatcher,
+    BoxList,
+    FasterRcnnBoxCoder,
+    IouSimilarity,
+    TargetAssigner
 )
+from effdet.soft_nms import batched_soft_nms
+from torchvision.ops.boxes import batched_nms
 
-
-# The minimum score to consider a logit for identifying detections.
 MIN_CLASS_SCORE = -5.0
 
 # The score for a dummy detection
 _DUMMY_DETECTION_SCORE = -1e5
 
 
-def decode_box_outputs(rel_codes, anchors, output_xyxy: bool=False):
+def decode_box_outputs(rel_codes, anchors, output_xyxy: bool = False):
     """Transforms relative regression coordinates to absolute positions.
 
     Network predictions are normalized and relative to a given anchor; this
@@ -93,7 +88,8 @@ def clip_boxes_xyxy(boxes: torch.Tensor, size: torch.Tensor):
 def generate_detections(
         cls_outputs, box_outputs, anchor_boxes, indices, classes,
         img_scale: Optional[torch.Tensor], img_size: Optional[torch.Tensor],
-        max_det_per_image: int = 100, soft_nms: bool = False):
+        max_det_per_image: int = 100, soft_nms: bool = False
+):
     """Generates detections with RetinaNet model outputs and anchors.
 
     Args:
@@ -138,7 +134,8 @@ def generate_detections(
     scores = cls_outputs.sigmoid().squeeze(1).float()
     if soft_nms:
         top_detection_idx, soft_scores = batched_soft_nms(
-            boxes, scores, classes, method_gaussian=True, iou_threshold=0.3, score_threshold=.001)
+            boxes, scores, classes, method_gaussian=True, iou_threshold=0.3, score_threshold=.001
+        )
         scores[top_detection_idx] = soft_scores
     else:
         top_detection_idx = batched_nms(boxes, scores, classes, iou_threshold=0.5)
@@ -159,10 +156,15 @@ def generate_detections(
     num_det = len(top_detection_idx)
     detections = torch.cat([boxes, scores, classes.float()], dim=1)
     if num_det < max_det_per_image:
-        detections = torch.cat([
-            detections,
-            torch.zeros((max_det_per_image - num_det, 6), device=detections.device, dtype=detections.dtype)
-        ], dim=0)
+        detections = torch.cat(
+            [
+                detections,
+                torch.zeros(
+                    (max_det_per_image - num_det, 6),
+                    device=detections.device, dtype=detections.dtype
+                )
+            ], dim=0
+        )
     return detections
 
 
@@ -228,8 +230,10 @@ class Anchors(nn.Module):
 
         assert isinstance(image_size, Sequence) and len(image_size) == 2
         # FIXME this restriction can likely be relaxed with some additional changes
-        # assert image_size[0] % 2 ** max_level == 0, 'Image size must be divisible by 2 ** max_level (128)'
-        # assert image_size[1] % 2 ** max_level == 0, 'Image size must be divisible by 2 ** max_level (128)'
+        # assert image_size[0] % 2 ** max_level == 0, 'Image size must be divisible by 2 **
+        # max_level (128)'
+        # assert image_size[1] % 2 ** max_level == 0, 'Image size must be divisible by 2 **
+        # max_level (128)'
         self.image_size = tuple(image_size)
         self.feat_sizes = get_feat_sizes(image_size, max_level)
         self.config = self._generate_configs()
@@ -240,7 +244,8 @@ class Anchors(nn.Module):
         return cls(
             config.min_level, config.max_level,
             config.num_scales, config.aspect_ratios,
-            config.anchor_scale, config.image_size)
+            config.anchor_scale, config.image_size
+        )
 
     def _generate_configs(self):
         """Generate configurations of anchor boxes."""
@@ -254,7 +259,8 @@ class Anchors(nn.Module):
                         ((feat_sizes[0][0] // feat_sizes[level][0],
                           feat_sizes[0][1] // feat_sizes[level][1]),
                          scale_octave / float(self.num_scales), aspect,
-                         self.anchor_scales[level - self.min_level]))
+                         self.anchor_scales[level - self.min_level])
+                    )
         return anchor_configs
 
     def _generate_boxes(self):
@@ -281,8 +287,10 @@ class Anchors(nn.Module):
                 xv = xv.reshape(-1)
                 yv = yv.reshape(-1)
 
-                boxes = np.vstack((yv - anchor_size_y_2, xv - anchor_size_x_2,
-                                   yv + anchor_size_y_2, xv + anchor_size_x_2))
+                boxes = np.vstack(
+                    (yv - anchor_size_y_2, xv - anchor_size_x_2,
+                     yv + anchor_size_y_2, xv + anchor_size_x_2)
+                )
                 boxes = np.swapaxes(boxes, 0, 1)
                 boxes_level.append(np.expand_dims(boxes, axis=1))
 
@@ -318,7 +326,8 @@ class AnchorLabeler(object):
             match_threshold,
             unmatched_threshold=match_threshold,
             negatives_lower_than_unmatched=True,
-            force_match_for_each_row=True)
+            force_match_for_each_row=True
+        )
         box_coder = FasterRcnnBoxCoder()
 
         self.target_assigner = TargetAssigner(similarity_calc, matcher, box_coder)
@@ -340,11 +349,13 @@ class AnchorLabeler(object):
 
         Returns:
             cls_targets_dict: ordered dictionary with keys [min_level, min_level+1, ..., max_level].
-                The values are tensor with shape [height_l, width_l, num_anchors]. The height_l and width_l
+                The values are tensor with shape [height_l, width_l, num_anchors]. The height_l
+                and width_l
                 represent the dimension of class logits at l-th level.
 
             box_targets_dict: ordered dictionary with keys [min_level, min_level+1, ..., max_level].
-                The values are tensor with shape [height_l, width_l, num_anchors * 4]. The height_l and
+                The values are tensor with shape [height_l, width_l, num_anchors * 4]. The
+                height_l and
                 width_l represent the dimension of bounding box regression output at l-th level.
 
             num_positives: scalar tensor storing number of positives in an image.
@@ -358,7 +369,8 @@ class AnchorLabeler(object):
             gt_classes = gt_classes[valid_idx]
 
         cls_targets, box_targets, matches = self.target_assigner.assign(
-            BoxList(self.anchors.boxes), BoxList(gt_boxes), gt_classes)
+            BoxList(self.anchors.boxes), BoxList(gt_boxes), gt_classes
+        )
 
         # class labels start from 1 and the background class = -1
         cls_targets = (cls_targets - 1).long()
@@ -369,8 +381,12 @@ class AnchorLabeler(object):
         for level in range(self.anchors.min_level, self.anchors.max_level + 1):
             feat_size = self.anchors.feat_sizes[level]
             steps = feat_size[0] * feat_size[1] * self.anchors.get_anchors_per_location()
-            cls_targets_out.append(cls_targets[count:count + steps].view([feat_size[0], feat_size[1], -1]))
-            box_targets_out.append(box_targets[count:count + steps].view([feat_size[0], feat_size[1], -1]))
+            cls_targets_out.append(
+                cls_targets[count:count + steps].view([feat_size[0], feat_size[1], -1])
+            )
+            box_targets_out.append(
+                box_targets[count:count + steps].view([feat_size[0], feat_size[1], -1])
+            )
             count += steps
 
         num_positives = (matches.match_results > -1).float().sum()
@@ -396,7 +412,9 @@ class AnchorLabeler(object):
             else:
                 gt_box_list = BoxList(gt_boxes[i])
                 gt_class_i = gt_classes[i]
-            cls_targets, box_targets, matches = self.target_assigner.assign(anchor_box_list, gt_box_list, gt_class_i)
+            cls_targets, box_targets, matches = self.target_assigner.assign(
+                anchor_box_list, gt_box_list, gt_class_i
+            )
 
             # class labels start from 1 and the background class = -1
             cls_targets = (cls_targets - 1).long()
@@ -409,9 +427,11 @@ class AnchorLabeler(object):
                 feat_size = self.anchors.feat_sizes[level]
                 steps = feat_size[0] * feat_size[1] * self.anchors.get_anchors_per_location()
                 cls_targets_out[level_idx].append(
-                    cls_targets[count:count + steps].view([feat_size[0], feat_size[1], -1]))
+                    cls_targets[count:count + steps].view([feat_size[0], feat_size[1], -1])
+                )
                 box_targets_out[level_idx].append(
-                    box_targets[count:count + steps].view([feat_size[0], feat_size[1], -1]))
+                    box_targets[count:count + steps].view([feat_size[0], feat_size[1], -1])
+                )
                 count += steps
                 if last_sample:
                     cls_targets_out[level_idx] = torch.stack(cls_targets_out[level_idx])
@@ -422,4 +442,3 @@ class AnchorLabeler(object):
                 num_positives_out = torch.stack(num_positives_out)
 
         return cls_targets_out, box_targets_out, num_positives_out
-

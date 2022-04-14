@@ -1,5 +1,9 @@
 *.pyc
 .idea
 runs
+lightning_logs
 trained_models
 venv
+.venv
+.hypothesis
+.pytest_cache

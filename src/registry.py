@@ -1,29 +1,65 @@
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from torch.nn import CrossEntropyLoss
-from torch.optim import SGD, Adam
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+import inspect
+import pkgutil
+
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from torch.nn import CrossEntropyLoss
+from torch.optim import SGD, Adam
+from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
 
-import pkgutil
-import inspect
-
-import data_modules
-import losses
-import metrics
-import models
-import tasks
+from src import data_modules, losses, metrics, tasks
+from src.losses.segmentation_losses import (
+    ComboLoss,
+    DiceBCELoss,
+    DiceLoss,
+    FocalLoss,
+    IoULoss,
+    TverskyLoss
+)
+from src.metrics.f_score import F1Score
+from src.metrics.iou_metric import IoUMetric
+from src.metrics.precision import Precision
+from src.metrics.recall import Recall
+from src.models.classification.bit_vehicle_classifier_net import BITVehicleClassifierNet
+from src.models.classification.effnets import EfficientNetB0, EfficientNetLite0
+from src.models.classification.simple_net import SimpleNet
+from src.models.detection.effdets import EfficientDet
+from src.models.detection.mobiledets import SSDMobileDetCPU, SSDMobileNetV2MNASFPN
+from src.models.segmentation.unet import UNet
 
 
 class Registry:
     DATA_MODULES = {}
     LOSSES = {
-        'CrossEntropyLoss': CrossEntropyLoss
+        'CrossEntropyLoss': CrossEntropyLoss,
+        'DiceLoss': DiceLoss,
+        'DiceBCELoss': DiceBCELoss,
+        'IoULoss': IoULoss,
+        'FocalLoss': FocalLoss,
+        'TverskyLoss': TverskyLoss,
+        'ComboLoss': ComboLoss
     }
-    METRICS = {}
-    MODELS = {}
+    METRICS = {
+        'F1Score': F1Score,
+        'Precision': Precision,
+        'Recall': Recall,
+        'IoU': IoUMetric
+    }
+    MODELS = {
+        'BITVehicleClassifierNet': BITVehicleClassifierNet,
+        'EfficientNetB0': EfficientNetB0,
+        'EfficientNetLite0': EfficientNetLite0,
+        'EfficientDet': EfficientDet,
+        'SimpleNet': SimpleNet,
+        'SSDMobileDetCPU': SSDMobileDetCPU,
+        'SSDMobileNetV2MNASFPN': SSDMobileNetV2MNASFPN,
+        'UNet': UNet
+    }
     TASKS = {}
     TRANSFORMS = {
+        'ToFloat': A.ToFloat,
+        'Normalize': A.Normalize,
         'Resize': A.Resize,
         'SmallestMaxSize': A.SmallestMaxSize,
         'LongestMaxSize': A.LongestMaxSize,
@@ -39,7 +75,8 @@ class Registry:
         'Adam': Adam
     }
     SCHEDULERS = {
-        'ReduceLROnPlateau': ReduceLROnPlateau
+        'ReduceLROnPlateau': ReduceLROnPlateau,
+        'CosineAnnealingLR': CosineAnnealingLR
     }
     CALLBACKS = {
         'ModelCheckpoint': ModelCheckpoint,
@@ -94,5 +131,4 @@ class Registry:
         cls.register_module(data_modules, cls.DATA_MODULES)
         cls.register_module(losses, cls.LOSSES)
         cls.register_module(metrics, cls.METRICS)
-        cls.register_module(models, cls.MODELS)
         cls.register_module(tasks, cls.TASKS)

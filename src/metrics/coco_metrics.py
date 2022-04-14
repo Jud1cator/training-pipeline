@@ -1,9 +1,9 @@
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
 from typing import List
 
+from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
 
-__all__ = ["get_stats_at_annotation_level", "get_coco_stats"]
+__all__ = ['get_stats_at_annotation_level', 'get_coco_stats']
 
 
 def convert_pascal_bbox_to_coco(xmin, ymin, xmax, ymax):
@@ -26,23 +26,23 @@ class AMLCOCO(COCO):
             self.createIndex()
 
 
-def get_stats_dict(stats=None, summ_type="bbox"):
-    if summ_type == "bbox":
+def get_stats_dict(stats=None, summ_type='bbox'):
+    if summ_type == 'bbox':
         if stats is None:
             stats = [-1] * 12
         r = {
-            "AP_all": stats[0],
-            "AP_all_IOU_0_50": stats[1],
-            "AP_all_IOU_0_75": stats[2],
-            "AP_small": stats[3],
-            "AP_medium": stats[4],
-            "AP_large": stats[5],
-            "AR_all_dets_1": stats[6],
-            "AR_all_dets_10": stats[7],
-            "AR_all": stats[8],
-            "AR_small": stats[9],
-            "AR_medium": stats[10],
-            "AR_large": stats[11],
+            'AP_all': stats[0],
+            'AP_all_IOU_0_50': stats[1],
+            'AP_all_IOU_0_75': stats[2],
+            'AP_small': stats[3],
+            'AP_medium': stats[4],
+            'AP_large': stats[5],
+            'AR_all_dets_1': stats[6],
+            'AR_all_dets_10': stats[7],
+            'AR_all': stats[8],
+            'AR_small': stats[9],
+            'AR_medium': stats[10],
+            'AR_large': stats[11],
         }
         return r
     return None
@@ -55,7 +55,7 @@ def convert_image_ids_to_coco(image_ids):
         images.extend(
             [
                 {
-                    "id": img_id,
+                    'id': img_id,
                 },
             ]
         )
@@ -74,7 +74,7 @@ def convert_class_labels_to_coco_cats(class_labels):
         cats.extend(
             [
                 {
-                    "id": cat,
+                    'id': cat,
                 }
             ]
         )
@@ -102,12 +102,12 @@ def convert_ground_truth_to_coco_annots(
             annots.extend(
                 [
                     {
-                        "id": ann_id,
-                        "bbox": coco_bbox,  # coco format: x, y, w, h
-                        "category_id": label,
-                        "image_id": target_image_id,
-                        "iscrowd": 0,
-                        "area": coco_bbox[2] * coco_bbox[3],
+                        'id': ann_id,
+                        'bbox': coco_bbox,  # coco format: x, y, w, h
+                        'category_id': label,
+                        'image_id': target_image_id,
+                        'iscrowd': 0,
+                        'area': coco_bbox[2] * coco_bbox[3],
                     }
                 ]
             )
@@ -129,7 +129,7 @@ def create_ground_truth(
         target_image_ids, target_class_labels, target_bboxes, convert_bbox_func
     )
 
-    return {"images": images, "annotations": annots, "categories": cats}
+    return {'images': images, 'annotations': annots, 'categories': cats}
 
 
 def create_detections(
@@ -159,10 +159,10 @@ def create_detections(
             detections.extend(
                 [
                     {
-                        "bbox": coco_bbox,  # coco format: x, y, w, h
-                        "category_id": class_prediction,
-                        "score": class_prediction_confidence,
-                        "image_id": image_id,
+                        'bbox': coco_bbox,  # coco format: x, y, w, h
+                        'category_id': class_prediction,
+                        'score': class_prediction_confidence,
+                        'image_id': image_id,
                     }
                 ]
             )
@@ -182,13 +182,17 @@ def get_stats_at_annotation_level(
 ):
     """
     :param predicted_class_labels: A list containing a list of class lolabels predicted per image
-    :param predicted_class_confidences: A list containing a list of prediction confidence values per image
-    :param predicted_bboxes: A list containing a list of bounding boxes, in Pascal VOC format, predicted per image
+    :param predicted_class_confidences: A list containing a list of prediction confidence values
+        per image
+    :param predicted_bboxes: A list containing a list of bounding boxes, in Pascal VOC format,
+        predicted per image
     :param prediction_image_ids: A list of image ids for each image in the prediction lists
     :param target_image_ids: A list of image ids for each image in the target lists
     :param target_class_labels: A list containing a list of ground truth class labels per image
-    :param target_bboxes: A list containing a list of ground truth bounding boxes, in Pascal VOC format
-    :param convert_bbox_func: A function to convert the format of incoming bboxes to coco format, can set to None
+    :param target_bboxes: A list containing a list of ground truth bounding boxes, in Pascal VOC
+        format
+    :param convert_bbox_func: A function to convert the format of incoming bboxes to coco format,
+        can set to None
     :returns: a dictionary of the coco results. Returns all -1s if there are no predictions.
     """
 
@@ -203,7 +207,7 @@ def get_stats_at_annotation_level(
         convert_bbox_func=convert_bbox_func,
     )
 
-    return results["All"]
+    return results['All']
 
 
 def get_coco_stats(
@@ -219,13 +223,17 @@ def get_coco_stats(
 ):
     """
     :param predicted_class_labels: A list containing a list of class labels predicted per image
-    :param predicted_class_confidences: A list containing a list of prediction confidence values per image
-    :param predicted_bboxes: A list containing a list of bounding boxes, in Pascal VOC format, predicted per image
+    :param predicted_class_confidences: A list containing a list of prediction confidence values
+        per image
+    :param predicted_bboxes: A list containing a list of bounding boxes, in Pascal VOC format,
+        predicted per image
     :param prediction_image_ids: A list of image ids for each image in the prediction lists
     :param target_image_ids: A list of image ids for each image in the target lists
     :param target_class_labels: A list containing a list of ground truth class labels per image
-    :param target_bboxes: A list containing a list of ground truth bounding boxes, in Pascal VOC format
-    :param convert_bbox_func: A function to convert the format of incoming bboxes to coco format, can set to None
+    :param target_bboxes: A list containing a list of ground truth bounding boxes, in Pascal VOC
+        format
+    :param convert_bbox_func: A function to convert the format of incoming bboxes to coco format,
+        can set to None
     :param include_per_class: Calculate and return per class result
     :returns: a dictionary of the coco results. Returns all -1s if there are no predictions.
     """
@@ -243,7 +251,7 @@ def get_coco_stats(
 
     if len(dt) == 0:
         # no predictions so return all -1s.
-        results["All"] = get_stats_dict(stats=None)
+        results['All'] = get_stats_dict(stats=None)
         return results
 
     # create coco dict for the ground truth
@@ -259,13 +267,13 @@ def get_coco_stats(
     coco_dt = coco_gt.loadRes(dt)
 
     # do the eval
-    coco_eval = COCOeval(coco_gt, coco_dt, "bbox")
+    coco_eval = COCOeval(coco_gt, coco_dt, 'bbox')
     image_ids = coco_gt.getImgIds()
     coco_eval.params.imgIds = image_ids
     coco_eval.evaluate()
     coco_eval.accumulate()
     coco_eval.summarize()
-    results["All"] = get_stats_dict(coco_eval.stats)
+    results['All'] = get_stats_dict(coco_eval.stats)
 
     if include_per_class:
         class_labels = coco_gt.getCatIds()

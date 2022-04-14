@@ -1,13 +1,11 @@
-from typing import Union, Optional, List
+from typing import List, Optional, Union
 
-import torch
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn
-
+import torch
 from matplotlib import patches
-
-from torchvision.utils import make_grid, draw_bounding_boxes
+from torchvision.utils import draw_bounding_boxes, make_grid
 
 
 def visualize_batch(img_batch: Union[torch.Tensor, List[torch.Tensor]]):
@@ -17,15 +15,19 @@ def visualize_batch(img_batch: Union[torch.Tensor, List[torch.Tensor]]):
     plt.show()
 
 
-def visualize_with_boxes(img_batch: torch.Tensor, boxes: torch.Tensor):
+def visualize_with_boxes(images: List[torch.Tensor], boxes: List[torch.Tensor], bbox_yxyx: bool):
     imgs = []
-    for i in range(img_batch.size()[0]):
-        img = (img_batch[i] * 255).byte()
+    for i in range(len(images)):
+        img = (images[i] * 255).byte()
         colors = ['red'] * boxes[i].size()[0]
-        img = draw_bounding_boxes(
-            img.cpu(), boxes[i][:, [1, 0, 3, 2]].cpu(), colors=colors, width=2)
+        if bbox_yxyx:
+            img = draw_bounding_boxes(
+                img.cpu(), boxes[i][:, [1, 0, 3, 2]].cpu(), colors=colors, width=2
+            )
+        else:
+            img = draw_bounding_boxes(img.cpu(), boxes[i].cpu(), colors=colors, width=2)
         imgs.append(img)
-    n_rows = int(np.sqrt(len(img_batch))) + 1
+    n_rows = int(np.sqrt(len(images))) + 1
     grid = make_grid(imgs, nrow=n_rows).numpy()
     plt.imshow(np.transpose(grid, (1, 2, 0)), interpolation='bilinear')
     plt.show()
@@ -39,7 +41,6 @@ def plot_confusion_matrix(
         cbar: bool = True,
         xyticks: bool = True,
         xyplotlabels: bool = True,
-        sum_stats: bool = True,
         cmap: Optional[str] = 'Blues',
         sort: bool = True,
         title: Optional[str] = None,
@@ -57,7 +58,6 @@ def plot_confusion_matrix(
         confusion matrix
     :param xyticks: If True, show x and y ticks
     :param xyplotlabels: If True, show 'True Labels' and 'Predicted Labels' on the figure
-    :param sum_stats: If True, display summary statistics below the figure
     :param cmap: Colormap of the values displayed from matplotlib.pyplot.cm
     :param sort: If True, Confusion Matrix will be sorted based on the diagonal values
     :param title: Title for confusion matrix plot
@@ -84,28 +84,20 @@ def plot_confusion_matrix(
     blanks = ['' for i in range(cm.size)]
 
     if count:
-        group_counts = ['{0:0.0f}\n'.format(value) for value in cm.flatten()]
+        group_counts = [f'{value:0.0f}\n' for value in cm.flatten()]
     else:
         group_counts = blanks
 
     if percent:
         values = cm / (np.sum(cm, axis=1)[:, np.newaxis] + epsilon)
         values = values.flatten()
-        group_percentages = ['{0:.2%}'.format(value) for value in values]
+        group_percentages = [f'{value:.2%}' for value in values]
     else:
         group_percentages = blanks
 
     box_labels = [f'{v1}{v2}'.strip()
                   for v1, v2 in zip(group_counts, group_percentages)]
     box_labels = np.asarray(box_labels).reshape(cm.shape[0], cm.shape[1])
-
-    # Code to generate summary statistics and text for summary stats
-    if sum_stats:
-        average_precision = np.array(
-            [cm[i, i] / cm[:, i].sum() for i in range(cm.shape[0])]).mean()
-        stats_text = f'\nAverage precision={average_precision:0.2f}'
-    else:
-        stats_text = ''
 
     if not xyticks:
         # Do not show categories if xyticks is False
@@ -129,15 +121,13 @@ def plot_confusion_matrix(
 
     if xyplotlabels:
         plt.ylabel('True labels')
-        plt.xlabel(f'Predicted labels {stats_text}')
-    else:
-        plt.xlabel(stats_text)
+        plt.xlabel('Predicted labels')
 
     if title:
         plt.title(title)
 
     if save_path is not None:
-        plt.savefig(save_path)
+        plt.savefig(save_path, bbox_inches='tight')
     if show:
         plt.show()
 
@@ -169,7 +159,7 @@ def draw_bboxes(plot_ax, bboxes, get_rectangle_corners_fn):
             width,
             height,
             linewidth=4,
-            edgecolor="black",
+            edgecolor='black',
             fill=False,
         )
         rect_2 = patches.Rectangle(
@@ -177,7 +167,7 @@ def draw_bboxes(plot_ax, bboxes, get_rectangle_corners_fn):
             width,
             height,
             linewidth=2,
-            edgecolor="white",
+            edgecolor='white',
             fill=False,
         )
 

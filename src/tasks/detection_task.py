@@ -1,14 +1,16 @@
+import warnings
 from typing import List
 
-from ensemble_boxes import ensemble_boxes_wbf
 import numpy as np
 import pytorch_lightning as pl
 import torch
+from ensemble_boxes import ensemble_boxes_wbf
 
-from metrics.coco_metrics import get_coco_stats
-from registry import Registry
-from utils.config_validation import Config
-from utils.visualization import visualize_batch, visualize_with_boxes
+from src.data_modules.detection_datamodule import DetectionDataModule
+from src.metrics.coco_metrics import get_coco_stats
+from src.registry import Registry
+from src.utils.config_validation import DEFAULT_OPTIMIZER, Config
+from src.utils.visualization import visualize_with_boxes
 
 
 def run_wbf(predictions, image_size=512, iou_thr=0.44, skip_box_thr=0.43, weights=None):
@@ -17,9 +19,9 @@ def run_wbf(predictions, image_size=512, iou_thr=0.44, skip_box_thr=0.43, weight
     class_labels = []
 
     for prediction in predictions:
-        boxes = [(prediction["boxes"] / image_size).tolist()]
-        scores = [prediction["scores"].tolist()]
-        labels = [prediction["classes"].tolist()]
+        boxes = [(prediction['boxes'] / image_size).tolist()]
+        scores = [prediction['scores'].tolist()]
+        labels = [prediction['classes'].tolist()]
 
         boxes, scores, labels = ensemble_boxes_wbf.weighted_boxes_fusion(
             boxes,
@@ -42,30 +44,34 @@ class DetectionTask(pl.LightningModule):
 
     def __init__(
             self,
-            datamodule,
             model: dict,
-            optimizer: dict,
+            datamodule: DetectionDataModule,
+            optimizer: dict = None,
             scheduler: dict = None,
-            debug: bool = False,
+            visualize_first_batch: bool = False,
             **kwargs
     ):
         super().__init__()
 
-        self.img_size = datamodule.image_size[0]
+        self.image_resolution = datamodule.image_resolution
+        self.bbox_yxyx = datamodule.bbox_to_yxyx
 
         model_config = Config(**model)
+        if optimizer is None:
+            warnings.warn('Optimizer is not set in the config. Creating default optimizer.')
+            optimizer = DEFAULT_OPTIMIZER
         self.optimizer_config = Config(**optimizer)
         self.scheduler_dict = Config(**scheduler) if scheduler else None
 
-        self.model = Registry.MODELS[model_config.name](**model_config.params).get_model()
+        self.model = Registry.MODELS[model_config.name](**model_config.params)
 
-        self.visualize_train = debug
-        self.visualize_val = debug
-        self.visualize_test = debug
+        self.visualize_train = visualize_first_batch
+        self.visualize_val = visualize_first_batch
+        self.visualize_test = visualize_first_batch
 
-    def forward(self, x, target):
+    def forward(self, x, **kwargs):
         # target = {'bbox': true_boxes, 'cls': true_labels, 'img_scale': None, 'img_size': None}
-        return self.model(x, target)
+        return self.model.forward(x, **kwargs)
 
     def log_loss(self, loss_dict, prefix=''):
         for name, item in loss_dict.items():
@@ -82,11 +88,11 @@ class DetectionTask(pl.LightningModule):
             self.logger.log_metrics({name: item}, step=self.current_epoch)
 
     def training_step(self, batch, batch_idx):
-        images, annotations, targets, image_ids = batch
+        images, targets, image_ids = batch
         if self.visualize_train:
-            visualize_with_boxes(images, annotations['bbox'])
+            visualize_with_boxes(images, [t['bboxes'] for t in targets], self.bbox_yxyx)
             self.visualize_train = False
-        output = self.forward(images, annotations)
+        output = self.forward(images, target=targets)
         return output
 
     def training_epoch_end(self, outputs):
@@ -97,11 +103,11 @@ class DetectionTask(pl.LightningModule):
         self.log_metrics(metrics, prefix='train')
 
     def validation_step(self, batch, batch_idx):
-        images, annotations, targets, image_ids = batch
+        images, targets, image_ids = batch
         if self.visualize_val:
-            visualize_with_boxes(images, annotations['bbox'])
+            visualize_with_boxes(images, [t['bboxes'] for t in targets], self.bbox_yxyx)
             self.visualize_val = False
-        output = self.forward(images, annotations)
+        output = self.forward(images, target=targets)
         batch_predictions = {
             'predictions': output['detections'],
             'targets': targets,
@@ -119,11 +125,11 @@ class DetectionTask(pl.LightningModule):
 
         pred_labels, image_ids, pred_bboxes, pred_confidences, targets = \
             self.aggregate_prediction_outputs(outputs)
-        truth_image_ids = [target["image_id"].detach().item() for target in targets]
+        truth_image_ids = [target['image_id'].detach().item() for target in targets]
         truth_boxes = [
-            target["bboxes"].detach()[:, [1, 0, 3, 2]].tolist() for target in targets
+            target['bboxes'].detach()[:, [1, 0, 3, 2]].tolist() for target in targets
         ]  # convert to xyxy for evaluation
-        truth_labels = [target["labels"].detach().tolist() for target in targets]
+        truth_labels = [target['labels'].detach().tolist() for target in targets]
 
         stats = get_coco_stats(
             prediction_image_ids=image_ids,
@@ -135,15 +141,16 @@ class DetectionTask(pl.LightningModule):
             target_class_labels=truth_labels
         )['All']
 
-        metrics = {'loss': loss, 'box_loss': box_loss, 'class_loss': class_loss, 'AP': stats['AP_all']}
+        metrics = {'loss': loss, 'box_loss': box_loss,
+                   'class_loss': class_loss, 'AP': stats['AP_all']}
         self.log_metrics(metrics, prefix='val')
 
     def test_step(self, batch, batch_idx):
-        images, annotations, targets, image_ids = batch
+        images, targets, image_ids = batch
         if self.visualize_test:
-            visualize_with_boxes(images, annotations['bbox'])
+            visualize_with_boxes(images, [t['bboxes'] for t in targets], self.bbox_yxyx)
             self.visualize_test = False
-        output = self.forward(images, annotations)
+        output = self.forward(images, target=targets)
         batch_predictions = {
             'predictions': output['detections'],
             'targets': targets,
@@ -156,11 +163,11 @@ class DetectionTask(pl.LightningModule):
     def test_epoch_end(self, outputs):
         pred_labels, image_ids, pred_bboxes, pred_confidences, targets = \
             self.aggregate_prediction_outputs(outputs)
-        target_image_ids = [target["image_id"].detach().item() for target in targets]
+        target_image_ids = [target['image_id'].detach().item() for target in targets]
         target_boxes = [
-            target["bboxes"].detach()[:, [1, 0, 3, 2]].tolist() for target in targets
+            target['bboxes'].detach()[:, [1, 0, 3, 2]].tolist() for target in targets
         ]  # convert to xyxy for evaluation
-        target_labels = [target["labels"].detach().tolist() for target in targets]
+        target_labels = [target['labels'].detach().tolist() for target in targets]
 
         stats = get_coco_stats(
             prediction_image_ids=image_ids,
@@ -204,8 +211,8 @@ class DetectionTask(pl.LightningModule):
         Args:
             images: a list of PIL images
 
-        Returns: a tuple of lists containing bboxes, predicted_class_labels, predicted_class_confidences
-
+        Returns: a tuple of lists containing bboxes, predicted_class_labels,
+            predicted_class_confidences
         """
         image_sizes = [(image.size[1], image.size[0]) for image in images]
         images_tensor = torch.stack(
@@ -214,7 +221,7 @@ class DetectionTask(pl.LightningModule):
                     image=np.array(image, dtype=np.float32),
                     labels=np.ones(1),
                     bboxes=np.array([[0, 0, 1, 1]]),
-                )["image"]
+                )['image']
                 for image in images
             ]
         )
@@ -227,32 +234,27 @@ class DetectionTask(pl.LightningModule):
         Args:
             images_tensor: the images tensor returned from the dataloader
 
-        Returns: a tuple of lists containing bboxes, predicted_class_labels, predicted_class_confidences
-
+        Returns: a tuple of lists containing bboxes, predicted_class_labels,
+            predicted_class_confidence
         """
         if images_tensor.ndim == 3:
             images_tensor = images_tensor.unsqueeze(0)
         if (
-                images_tensor.shape[-1] != self.img_size
-                or images_tensor.shape[-2] != self.img_size
+                images_tensor.shape[-1] != self.image_resolution.width or
+                images_tensor.shape[-2] != self.image_resolution.height
         ):
             raise ValueError(
-                f"Input tensors must be of shape (N, 3, {self.img_size}, {self.img_size})"
+                f'Input tensors must be of shape '
+                f'(N, 3, {self.image_resolution.height}, {self.image_resolution.width})'
             )
 
         num_images = images_tensor.shape[0]
-        image_sizes = [(self.img_size, self.img_size)] * num_images
+        image_sizes = [(self.image_resolution.height, self.image_resolution.width)] * num_images
 
         return self._run_inference(images_tensor, image_sizes)
 
     def _run_inference(self, images_tensor, image_sizes):
-        dummy_targets = self._create_dummy_inference_targets(
-            num_images=images_tensor.shape[0]
-        )
-
-        detections = self.model(images_tensor.to(self.device), dummy_targets)[
-            "detections"
-        ]
+        detections = self.model.forward(images_tensor.to(self.device))['detections']
         (
             predicted_bboxes,
             predicted_class_confidences,
@@ -267,15 +269,17 @@ class DetectionTask(pl.LightningModule):
 
     def _create_dummy_inference_targets(self, num_images):
         dummy_targets = {
-            "bbox": [
+            'bbox': [
                 torch.tensor([[0.0, 0.0, 0.0, 0.0]], device=self.device)
                 for i in range(num_images)
             ],
-            "cls": [torch.tensor([1.0], device=self.device) for i in range(num_images)],
-            "img_size": torch.tensor(
-                [(self.img_size, self.img_size)] * num_images, device=self.device
+            'cls': [torch.tensor([1.0], device=self.device) for i in range(num_images)],
+            'img_size': torch.tensor(
+                [
+                    (self.image_resolution.height, self.image_resolution.width)
+                ] * num_images, device=self.device
             ).float(),
-            "img_scale": torch.ones(num_images, device=self.device).float(),
+            'img_scale': torch.ones(num_images, device=self.device).float(),
         }
 
         return dummy_targets
@@ -288,7 +292,10 @@ class DetectionTask(pl.LightningModule):
             )
 
         predicted_bboxes, predicted_class_confidences, predicted_class_labels = run_wbf(
-            predictions, image_size=self.img_size, iou_thr=0.5, skip_box_thr=0.1
+            predictions,
+            image_size=max(self.image_resolution.height, self.image_resolution.width),
+            iou_thr=0.5,
+            skip_box_thr=0.1
         )
 
         return predicted_bboxes, predicted_class_confidences, predicted_class_labels
@@ -300,7 +307,7 @@ class DetectionTask(pl.LightningModule):
         indexes = np.where(scores > 0.1)[0]
         boxes = boxes[indexes]
 
-        return {"boxes": boxes, "scores": scores[indexes], "classes": classes[indexes]}
+        return {'boxes': boxes, 'scores': scores[indexes], 'classes': classes[indexes]}
 
     def _rescale_bboxes(self, predicted_bboxes, image_sizes):
         scaled_bboxes = []
@@ -310,13 +317,13 @@ class DetectionTask(pl.LightningModule):
             if len(bboxes) > 0:
                 scaled_bboxes.append(
                     (
-                            np.array(bboxes)
-                            * [
-                                im_w / self.img_size,
-                                im_h / self.img_size,
-                                im_w / self.img_size,
-                                im_h / self.img_size,
-                            ]
+                        np.array(bboxes) *
+                        [
+                            im_w / self.image_resolution.width,
+                            im_h / self.image_resolution.height,
+                            im_w / self.image_resolution.width,
+                            im_h / self.image_resolution.height,
+                        ]
                     ).tolist()
                 )
             else:
@@ -326,14 +333,14 @@ class DetectionTask(pl.LightningModule):
 
     def aggregate_prediction_outputs(self, outputs):
 
-        detections = torch.cat([output["batch_predictions"]["predictions"] for output in outputs])
+        detections = torch.cat([output['batch_predictions']['predictions'] for output in outputs])
 
         image_ids = []
         targets = []
         for output in outputs:
-            batch_predictions = output["batch_predictions"]
-            image_ids.extend(batch_predictions["image_ids"])
-            targets.extend(batch_predictions["targets"])
+            batch_predictions = output['batch_predictions']
+            image_ids.extend(batch_predictions['image_ids'])
+            targets.extend(batch_predictions['targets'])
 
         (
             predicted_bboxes,
