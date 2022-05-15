@@ -60,7 +60,6 @@ class UNet(AbstractModelWrapper):
         layers.append(nn.Conv2d(feats, num_classes, kernel_size=1))
 
         self.layers = nn.ModuleList(layers)
-        self.head = nn.Sigmoid()
 
     def forward(self, x):
         """
@@ -76,4 +75,4 @@ class UNet(AbstractModelWrapper):
         for i, layer in enumerate(self.layers[self.num_layers:-1]):
             xi[-1] = layer(xi[-1], xi[-2 - i])
 
-        return self.head(self.layers[-1](xi[-1]))
+        return self.layers[-1](xi[-1])

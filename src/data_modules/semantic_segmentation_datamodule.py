@@ -9,8 +9,9 @@ import torch
 from PIL import Image
 from pydantic import validate_arguments
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import DataLoader, Dataset, Subset, random_split
 
+from src.data_modules.utils.stratified_split_optimizer import StratifiedSplitOptimizer
 from src.utils.helpers import parse_image_resolution_from_transforms
 from src.utils.typings import float_in_range, int_in_range, int_non_negative
 
@@ -88,6 +89,7 @@ class SemanticSegmentationDataModule(LightningDataModule):
         train_split: float_in_range(0.0, 1.0) = 0.0,
         val_split: float_in_range(0.0, 1.0) = 0.0,
         test_split: float_in_range(0.0, 1.0) = 0.0,
+        use_stratified_split: bool = False,
         shuffle_train: bool = True,
         shuffle_val: bool = False,
         drop_last: bool = False,
@@ -140,6 +142,7 @@ class SemanticSegmentationDataModule(LightningDataModule):
             ignore_index,
             self.train_transforms()
         )
+        n_classes = dataset.n_classes
 
         train_length = floor(train_split * len(dataset))
         val_length = floor(val_split * len(dataset))
@@ -157,9 +160,6 @@ class SemanticSegmentationDataModule(LightningDataModule):
             test_length = floor(test_split * len(dataset))
 
         unused_length = len(dataset) - train_length - val_length - test_length
-
-        # TODO: TP-31 Research and implement stratified data split:
-        #  https://edgevision.atlassian.net/browse/TP-31
 
         if unused_length > 0:
             dataset, _ = random_split(
@@ -185,6 +185,19 @@ class SemanticSegmentationDataModule(LightningDataModule):
                     warnings.warn(
                         'Test split is set to 0, validation set will be used for testing'
                     )
+
+        if use_stratified_split and train_split > 0.0 and val_split > 0.0:
+            split_ratios = [train_split, val_split]
+            indices = [self.train_set.indices, self.val_set.indices]
+            if test_split > 0.0:
+                split_ratios.append(test_split)
+                indices.append(self.test_set.indices)
+            optimizer = StratifiedSplitOptimizer(dataset, n_classes, split_ratios)
+            new_indices = optimizer.find_approximately_optimal_split(indices)
+            self.train_set = Subset(dataset, new_indices[0])
+            self.val_set = Subset(dataset, new_indices[1])
+            if test_split > 0.0:
+                self.test_set = Subset(dataset, new_indices[2])
 
     def prepare_data(self, *args, **kwargs):
         pass

@@ -9,18 +9,9 @@ from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
 
 from src import data_modules, losses, metrics, tasks
-from src.losses.segmentation_losses import (
-    ComboLoss,
-    DiceBCELoss,
-    DiceLoss,
-    FocalLoss,
-    IoULoss,
-    TverskyLoss
-)
-from src.metrics.f_score import F1Score
+from src.losses.segmentation.combo_loss import ComboLoss
+from src.losses.segmentation.dice_loss import DiceLoss
 from src.metrics.iou_metric import IoUMetric
-from src.metrics.precision import Precision
-from src.metrics.recall import Recall
 from src.models.classification.bit_vehicle_classifier_net import BITVehicleClassifierNet
 from src.models.classification.effnets import EfficientNetB0, EfficientNetLite0
 from src.models.classification.simple_net import SimpleNet
@@ -34,16 +25,9 @@ class Registry:
     LOSSES = {
         'CrossEntropyLoss': CrossEntropyLoss,
         'DiceLoss': DiceLoss,
-        'DiceBCELoss': DiceBCELoss,
-        'IoULoss': IoULoss,
-        'FocalLoss': FocalLoss,
-        'TverskyLoss': TverskyLoss,
         'ComboLoss': ComboLoss
     }
     METRICS = {
-        'F1Score': F1Score,
-        'Precision': Precision,
-        'Recall': Recall,
         'IoU': IoUMetric
     }
     MODELS = {

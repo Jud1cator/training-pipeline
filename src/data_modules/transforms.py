@@ -1,4 +1,4 @@
-from src.data_modules.utils import resize_pad
+from src.data_modules.utils.helpers import resize_pad
 
 
 class ResizePad:

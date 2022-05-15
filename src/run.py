@@ -37,6 +37,8 @@ def main(
         trainer_params: dict,
         export_params: dict
 ):
+    logging.basicConfig(level=logging.INFO)
+
     # Initializing run folders
     run_dir, ckpt_dir, res_dir, weights_dir = prepare_run(**run_params)
 
@@ -96,7 +98,7 @@ def main(
             state_dict_keys = list(model_state_dict.keys())
             for k in state_dict_keys:
                 model_state_dict['.'.join(k.split('.')[1:])] = model_state_dict.pop(k)
-            task.model.load_state_dict(model_state_dict)
+            task.model.load_state_dict(model_state_dict, strict=False)
 
         # Saving only weights from the best model
         weights_fname = '.'.join([export_params['output_name'], 'pt'])
@@ -112,7 +114,7 @@ def main(
     # --- EXPORT ---
     if export_params.get('to_onnx', False):
         batch_size = export_params.get('batch_size', 1)
-        opset_version = export_params.get('opset_version', 9)
+        opset_version = export_params.get('opset_version', 11)
         onnx_fname = export_params['output_name'] + '.onnx'
         dummy_input = dm.create_dummy_input(batch_size)
         torch.onnx.export(
