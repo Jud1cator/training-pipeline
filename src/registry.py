@@ -8,13 +8,18 @@ from torch.nn import CrossEntropyLoss
 from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
 
-import data_modules, losses, metrics, tasks
-from losses.segmentation.combo_loss import ComboLoss
-from losses.segmentation.dice_loss import DiceLoss
-from metrics.iou_metric import IoUMetric
+from src import data_modules, losses, metrics, tasks
+from src.losses.segmentation.combo_loss import ComboLoss
+from src.losses.segmentation.dice_loss import DiceLoss
+from src.metrics.iou_metric import IoUMetric
+from src.models.classification.bit_vehicle_classifier_net import BITVehicleClassifierNet
+from src.models.classification.effnets import EfficientNetB0, EfficientNetLite0
+from src.models.classification.simple_net import SimpleNet
+from src.models.detection.effdets import EfficientDet
+from src.models.detection.mobiledets import SSDMobileDetCPU, SSDMobileNetV2MNASFPN
+from src.models.segmentation.unet import UNet
+from src.models.segmentation.Tiramisu.tiramisu import FCDenseNet
 
-from models.segmentation.unet import UNet
-from models.segmentation.Tiramisu.tiramisu import FCDenseNet
 
 class Registry:
     DATA_MODULES = {}
@@ -27,6 +32,13 @@ class Registry:
         'IoU': IoUMetric
     }
     MODELS = {
+        'BITVehicleClassifierNet': BITVehicleClassifierNet,
+        'EfficientNetB0': EfficientNetB0,
+        'EfficientNetLite0': EfficientNetLite0,
+        'EfficientDet': EfficientDet,
+        'SimpleNet': SimpleNet,
+        'SSDMobileDetCPU': SSDMobileDetCPU,
+        'SSDMobileNetV2MNASFPN': SSDMobileNetV2MNASFPN,
         'UNet': UNet,
         'FCDenseNet': FCDenseNet
     }
