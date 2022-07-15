@@ -1,0 +1,92 @@
+run_params:
+  name: Tiramisu_segmentation
+  seed: 1
+
+datamodule:
+  name: SemanticSegmentationDataModule
+  params:
+    images_dir: "./data/train_images"
+    masks_dir: "./data/train_labels"
+    test_images_path: "./data/test"
+    test_masks_path: "./data/test_1d_labels"
+    value_to_class_map:
+      0: background
+      1: wet
+      2: dry
+      3: other
+      4: snow
+
+    batch_size: 8
+    train_split: 0.8
+    val_split: 0.1
+    test_split: 0.1
+    shuffle_train: True
+    pin_memory: True
+
+train_transforms:
+  - name: ToFloat
+    params:
+      max_value: 255
+  - name: LongestMaxSize
+    params:
+      max_size: 256
+  - name: PadIfNeeded
+    params:
+      min_height: 256
+      min_width: 256
+      position: top_left
+      border_mode: 0
+      value: 0
+  - name: ToTensor
+
+val_transforms:
+  - name: ToFloat
+    params:
+      max_value: 255
+  - name: LongestMaxSize
+    params:
+      max_size: 256
+  - name: PadIfNeeded
+    params:
+      min_height: 256
+      min_width: 256
+      position: top_left
+      border_mode: 0
+      value: 0
+  - name: ToTensor
+
+
+task:
+  name: SemanticSegmentationTask
+  params:
+    visualize_first_batch: True
+    model:
+      name: FCDenseNet
+      params:
+        in_channels: 3
+        bottleneck_layers: 4
+        growth_rate: 12
+        out_chans_first_conv: 48
+    loss:
+      name: CrossEntropyLoss
+    metrics:
+      - name: IoU
+    optimizer:
+      name: Adam
+      params:
+        lr: 0.001
+
+callbacks:
+  - name: ModelCheckpoint
+    params:
+      monitor: val_loss
+      mode: 'min'
+      verbose: True
+
+trainer_params:
+  max_epochs: 40
+  gpus: 1
+
+export_params:
+  output_name: example_segmentation
+  to_onnx: True

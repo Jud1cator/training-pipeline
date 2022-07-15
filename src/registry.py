@@ -18,6 +18,7 @@ from src.models.classification.simple_net import SimpleNet
 from src.models.detection.effdets import EfficientDet
 from src.models.detection.mobiledets import SSDMobileDetCPU, SSDMobileNetV2MNASFPN
 from src.models.segmentation.unet import UNet
+from src.models.segmentation.Tiramisu.tiramisu import FCDenseNet
 
 
 class Registry:
@@ -38,7 +39,8 @@ class Registry:
         'SimpleNet': SimpleNet,
         'SSDMobileDetCPU': SSDMobileDetCPU,
         'SSDMobileNetV2MNASFPN': SSDMobileNetV2MNASFPN,
-        'UNet': UNet
+        'UNet': UNet,
+        'FCDenseNet': FCDenseNet
     }
     TASKS = {}
     TRANSFORMS = {
